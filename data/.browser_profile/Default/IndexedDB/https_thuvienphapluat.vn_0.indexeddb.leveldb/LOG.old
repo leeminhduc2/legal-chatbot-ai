@@ -1,0 +1,13 @@
+2026/06/26-17:30:06.593 7340 Reusing MANIFEST D:\legal-chatbot-ai\data\.browser_profile\Default\IndexedDB\https_thuvienphapluat.vn_0.indexeddb.leveldb/MANIFEST-000001
+2026/06/26-17:30:06.595 7340 Recovering log #7
+2026/06/26-17:30:06.599 7340 Reusing old log D:\legal-chatbot-ai\data\.browser_profile\Default\IndexedDB\https_thuvienphapluat.vn_0.indexeddb.leveldb/000007.log 
+2026/06/26-17:30:06.671 6b2c Level-0 table #11: started
+2026/06/26-17:30:06.687 6b2c Level-0 table #11: 1380 bytes OK
+2026/06/26-17:30:06.690 6b2c Delete type=0 #7
+2026/06/26-17:30:06.691 1140 Manual compaction at level-0 from '\x00\x03\x00\x00\x00' @ 72057594037927935 : 1 .. '\x00\x04\x00\x00\x00' @ 0 : 0; will stop at '\x00\x03\x01\x03\x01\x01\x00x' @ 233 : 1
+2026/06/26-17:30:06.691 1140 Compacting 1@0 + 1@1 files
+2026/06/26-17:30:06.713 1140 Generated table #12@0: 28 keys, 681 bytes
+2026/06/26-17:30:06.714 1140 Compacted 1@0 + 1@1 files => 681 bytes
+2026/06/26-17:30:06.716 1140 compacted to: files[ 0 1 1 0 0 0 0 ]
+2026/06/26-17:30:06.717 1140 Delete type=2 #11
+2026/06/26-17:30:06.717 1140 Manual compaction at level-0 from '\x00\x03\x01\x03\x01\x01\x00x' @ 233 : 1 .. '\x00\x04\x00\x00\x00' @ 0 : 0; will stop at (end)

@@ -1,0 +1,14 @@
+2026/06/26-17:30:41.785 39e8 Reusing MANIFEST D:\legal-chatbot-ai\data\.browser_profile\Default\IndexedDB\https_thuvienphapluat.vn_0.indexeddb.leveldb/MANIFEST-000001
+2026/06/26-17:30:41.787 39e8 Recovering log #10
+2026/06/26-17:30:41.788 39e8 Reusing old log D:\legal-chatbot-ai\data\.browser_profile\Default\IndexedDB\https_thuvienphapluat.vn_0.indexeddb.leveldb/000010.log 
+2026/06/26-17:30:41.789 39e8 Delete type=2 #8
+2026/06/26-17:30:42.060 6880 Level-0 table #15: started
+2026/06/26-17:30:42.073 6880 Level-0 table #15: 1386 bytes OK
+2026/06/26-17:30:42.076 6880 Delete type=0 #10
+2026/06/26-17:30:42.078 39e8 Manual compaction at level-0 from '\x00\x04\x00\x00\x00' @ 72057594037927935 : 1 .. '\x00\x05\x00\x00\x00' @ 0 : 0; will stop at '\x00\x04\x01\x03\x01\x01\x00x' @ 323 : 1
+2026/06/26-17:30:42.078 39e8 Compacting 1@0 + 1@1 files
+2026/06/26-17:30:42.093 39e8 Generated table #16@0: 29 keys, 699 bytes
+2026/06/26-17:30:42.094 39e8 Compacted 1@0 + 1@1 files => 699 bytes
+2026/06/26-17:30:42.096 39e8 compacted to: files[ 0 1 1 0 0 0 0 ]
+2026/06/26-17:30:42.098 39e8 Delete type=2 #15
+2026/06/26-17:30:42.099 39e8 Manual compaction at level-0 from '\x00\x04\x01\x03\x01\x01\x00x' @ 323 : 1 .. '\x00\x05\x00\x00\x00' @ 0 : 0; will stop at (end)
