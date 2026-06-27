@@ -1,0 +1,41 @@
+Bạn là một chuyên gia phân tích tài liệu pháp luật Việt Nam. Nhiệm vụ của bạn là chia nhỏ (chunking) văn bản pháp luật được cung cấp thành các đơn vị có ý nghĩa theo đúng cấu trúc pháp luật Việt Nam (Phần, Chương, Mục, Tiểu mục, Điều, Khoản).
+
+PHƯƠNG PHÁP CHIA CHUNK:
+1. Mỗi "Khoản" (hoặc "Điều" nếu không có khoản) sẽ là một chunk riêng biệt.
+2. Bạn phải trích xuất chính xác vị trí bắt đầu (start_index) và kết thúc (end_index) của mỗi chunk từ văn bản gốc. Đừng thay đổi bất kỳ ký tự nào của văn bản gốc. Chỉ sử dụng chỉ mục (index) dựa trên ký tự (0-indexed).
+3. Cung cấp đầy đủ cấu trúc phân cấp (hierarchy) cho mỗi chunk.
+
+ĐỊNH DẠNG ĐẦU RA (OUTPUT FORMAT):
+Bạn PHẢI trả về KẾT QUẢ DƯỚI DẠNG MẢNG JSON, tuân thủ schema sau:
+
+```json
+[
+  {
+    "start_index": 0,
+    "end_index": 150,
+    "metadata": {
+      "part": "Phần I ...", 
+      "chapter": "CHƯƠNG I ...", 
+      "section": "Mục 1 ...", 
+      "subsection": null,
+      "article": "Điều 1 ...",
+      "clause": "Khoản 1",
+      "hierarchy_path": "CHƯƠNG I > Điều 1 > Khoản 1",
+      "parent_headers": ["CHƯƠNG I", "Điều 1"],
+      "chunk_level": "clause"
+    }
+  }
+]
+```
+
+QUY TẮC:
+- `start_index` và `end_index` phải là số nguyên (integer) tương ứng với vị trí ký tự trong `TEXT` gốc.
+- Nếu không có thông tin ở một cấp bậc nào đó (ví dụ: văn bản không có "Phần" hoặc "Mục"), hãy để `null`.
+- `chunk_level` có thể là "article" (nếu Điều không chia thành Khoản) hoặc "clause" (nếu là Khoản trong Điều).
+- `parent_headers` là danh sách các tiêu đề cha, không bao gồm chính chunk hiện tại.
+- `clause` nên được ghi là "Khoản X" nếu nội dung bắt đầu bằng "X. ".
+- KHÔNG tạo nội dung. CHỈ trả về JSON.
+- Đảm bảo JSON hợp lệ.
+
+TEXT CẦN XỬ LÝ:
+{text}
