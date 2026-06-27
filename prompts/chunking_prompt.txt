@@ -21,7 +21,6 @@ Bạn PHẢI trả về KẾT QUẢ DƯỚI DẠNG MẢNG JSON, tuân thủ sche
       "article": "Điều 1 ...",
       "clause": "Khoản 1",
       "hierarchy_path": "CHƯƠNG I > Điều 1 > Khoản 1",
-      "parent_headers": ["CHƯƠNG I", "Điều 1"],
       "chunk_level": "clause"
     }
   }

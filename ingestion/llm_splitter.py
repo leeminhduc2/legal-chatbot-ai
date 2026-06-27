@@ -76,10 +76,16 @@ class LLMVietnameseLegalSplitter:
         if split_points[-1] != len(text):
             split_points.append(len(text))
 
+        
+
         for i in range(len(split_points) - 1):
             start = split_points[i]
             end = split_points[i+1]
             batch_text = text[start:end]
+
+            # Write down batch text in log folder (temporarily)
+            with open(f"log/{self.doc_name}_batch_{i}.md", "w", encoding="utf-8") as f:
+                f.write(batch_text)
             
             print(f"  Sending batch {i+1}/{len(split_points)-1} to LLM (chars: {len(batch_text)})...")
             
@@ -87,7 +93,7 @@ class LLMVietnameseLegalSplitter:
             
             try:
                 response = self.client.chat.completions.create(
-                    model="deepseek-v4-flash", # Sử dụng deepseek-chat cho v4
+                    model="deepseek-v4-pro", # Sử dụng deepseek-chat cho v4
                     messages=[
                         {"role": "system", "content": "You are a helpful assistant that strictly outputs JSON arrays according to instructions."},
                         {"role": "user", "content": prompt}
@@ -126,8 +132,6 @@ class LLMVietnameseLegalSplitter:
                         chunk_id = f"{self.clean_id(self.doc_name)}_{article_id}"
                         
                     chunks.append({
-                        "chunk_id": chunk_id,
-                        "document_id": self.doc_name,
                         "content": full_content,
                         "metadata": meta
                     })
