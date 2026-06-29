@@ -27,7 +27,7 @@ class BGEM3CustomEmbeddingFunction(EmbeddingFunction):
         )
         
         # Lấy mảng dense_vecs (numpy array) và chuyển thành list of lists (List[List[float]])
-        embeddings = torch.nn.functional.normalize(output['dense_vecs']).tolist()
+        embeddings = output['dense_vecs'].tolist()
         return embeddings
 
     @staticmethod
@@ -43,8 +43,14 @@ class BGEM3CustomEmbeddingFunction(EmbeddingFunction):
 
 
 def embed_json_file(file_path: str | Path):
+    
     """Read json file that contains chunks and save them into ChromaDB."""
-    file_path = Path(file_path)
+
+    client = chromadb.PersistentClient(path="data/chroma/chroma_db2")
+    collection = client.get_or_create_collection(name="legal-texts_tt74",embedding_function=BGEM3CustomEmbeddingFunction(model_name = 'BAAI/bge-m3', use_fp16=True))
+
+
+    file_path = Path(f"data\\chunked\\{file_path}")
     if not file_path.exists():
         print(f"[ERROR] File not found: {file_path}")
         return
@@ -89,24 +95,3 @@ def embed_json_file(file_path: str | Path):
         
     print("Done!")
 
-if __name__ == "__main__":
-    # Khởi tạo client một lần để tái sử dụng
-    client = chromadb.PersistentClient(path="data/chroma/chroma_db2")
-    collection = client.get_or_create_collection(name="legal-texts_tt74",embedding_function=BGEM3CustomEmbeddingFunction(model_name = 'BAAI/bge-m3', use_fp16=True))
-    # Chỉ định đường dẫn tới file JSON bạn muốn đọc
-    target_file = Path("data\chunked\TT 74.2026_BTC.json")
-    embed_json_file(target_file)
-    # Query the database (for testing purpose)
-    results = collection.query(
-        query_texts=[
-            "Cơ quan có thẩm quyền sẽ cấp những chứng chỉ gì liên quan đến lĩnh vực năng lực nguyên tử ?"
-        ],
-        n_results=10
-    )
-
-    for i, query_results in enumerate(results["documents"]):
-        print(f"Query {i+1}:")
-        for j, doc in enumerate(query_results):
-            print(f"  {j+1}. {doc}")
-            print(f"     {results['distances'][i][j]}")
-        print()

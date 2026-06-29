@@ -3,7 +3,8 @@ import sys
 from pathlib import Path
 from typing import List, Dict, Any
 from docx import Document
-from llm_splitter import LLMVietnameseLegalSplitter
+from .llm_splitter import LLMVietnameseLegalSplitter
+
 
 
 def get_docx_paragraphs(file_path: str | Path) -> List[str]:
@@ -84,7 +85,7 @@ def split_docx_paragraphs(paragraphs: List[str], doc_name: str) -> List[Dict[str
     return chunks
 
 
-def process_legal_documents():
+def process_legal_documents(document_path : str):
     """Xử lý tất cả file .docx trong data/raw.
     
     Pipeline:
@@ -100,8 +101,8 @@ def process_legal_documents():
     preprocessed_dir.mkdir(parents=True, exist_ok=True)
     chunked_dir.mkdir(parents=True, exist_ok=True)
 
-    docx_files = list(raw_dir.glob("*.docx"))
-    print(f"Found {len(docx_files)} DOCX files in {raw_dir}")
+    docx_files = list(raw_dir.glob(document_path))
+    print(f"Found DOCX files in {raw_dir}")
 
     for docx_path in docx_files:
         doc_name = docx_path.stem
@@ -121,7 +122,7 @@ def process_legal_documents():
             tables = get_docx_tables(docx_path)
             print(f"  - Found {len(tables)} tables (tiêu ngữ, nơi nhận, chữ ký...)")
             for tbl in tables:
-                print(f"    [Bảng {tbl['table_index']}] {len(tbl['rows'])} rows")
+                print(f"    [Table {tbl['table_index']}] {len(tbl['rows'])} rows")
 
             # 3. Chia chunks từ paragraphs
             chunks = split_docx_paragraphs(paragraphs, doc_name)
@@ -134,7 +135,3 @@ def process_legal_documents():
         except Exception as e:
             print(f"  - [ERROR] Failed to process {docx_path.name}: {e}")
 
-
-if __name__ == "__main__":
-    sys.stdout.reconfigure(encoding='utf-8')
-    process_legal_documents()
