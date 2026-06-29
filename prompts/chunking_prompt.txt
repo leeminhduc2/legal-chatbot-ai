@@ -2,8 +2,7 @@ Bạn là một chuyên gia phân tích tài liệu pháp luật Việt Nam. Nhi
 
 PHƯƠNG PHÁP CHIA CHUNK:
 1. Mỗi "Khoản" (hoặc "Điều" nếu không có khoản) sẽ là một chunk riêng biệt.
-2. Bạn phải trích xuất chính xác vị trí bắt đầu (start_index) và kết thúc (end_index) của mỗi chunk từ văn bản gốc. Đừng thay đổi bất kỳ ký tự nào của văn bản gốc. Chỉ sử dụng chỉ mục (index) dựa trên ký tự (0-indexed).
-3. Cung cấp đầy đủ cấu trúc phân cấp (hierarchy) cho mỗi chunk.
+2. Cung cấp đầy đủ cấu trúc phân cấp (hierarchy) cho mỗi chunk.
 
 ĐỊNH DẠNG ĐẦU RA (OUTPUT FORMAT):
 Bạn PHẢI trả về KẾT QUẢ DƯỚI DẠNG MẢNG JSON, tuân thủ schema sau:
@@ -11,8 +10,7 @@ Bạn PHẢI trả về KẾT QUẢ DƯỚI DẠNG MẢNG JSON, tuân thủ sche
 ```json
 [
   {
-    "start_index": 0,
-    "end_index": 150,
+    "content" : ""
     "metadata": {
       "part": "Phần I ...", 
       "chapter": "CHƯƠNG I ...", 
@@ -28,10 +26,8 @@ Bạn PHẢI trả về KẾT QUẢ DƯỚI DẠNG MẢNG JSON, tuân thủ sche
 ```
 
 QUY TẮC:
-- `start_index` và `end_index` phải là số nguyên (integer) tương ứng với vị trí ký tự trong `TEXT` gốc.
 - Nếu không có thông tin ở một cấp bậc nào đó (ví dụ: văn bản không có "Phần" hoặc "Mục"), hãy để `null`.
 - `chunk_level` có thể là "article" (nếu Điều không chia thành Khoản) hoặc "clause" (nếu là Khoản trong Điều).
-- `parent_headers` là danh sách các tiêu đề cha, không bao gồm chính chunk hiện tại.
 - `clause` nên được ghi là "Khoản X" nếu nội dung bắt đầu bằng "X. ".
 - KHÔNG tạo nội dung. CHỈ trả về JSON.
 - Đảm bảo JSON hợp lệ.

@@ -93,7 +93,7 @@ class LLMVietnameseLegalSplitter:
             
             try:
                 response = self.client.chat.completions.create(
-                    model="deepseek-v4-pro", # Sử dụng deepseek-chat cho v4
+                    model="deepseek-v4-flash", # Sử dụng deepseek-chat cho v4
                     messages=[
                         {"role": "system", "content": "You are a helpful assistant that strictly outputs JSON arrays according to instructions."},
                         {"role": "user", "content": prompt}
@@ -106,19 +106,14 @@ class LLMVietnameseLegalSplitter:
                 
                 # Ánh xạ lại chỉ mục và tạo chunk objects
                 for info in batch_chunks_info:
-                    rel_start = info.get("start_index", 0)
-                    rel_end = info.get("end_index", len(batch_text))
                     meta = info.get("metadata", {})
                     
                     # Content chính xác được trích xuất từ text gốc
-                    raw_content = batch_text[rel_start:rel_end].strip()
-                    if not raw_content:
+                    full_content = info.get("content", "")
+                    if not full_content:
                         continue
 
-                    # Tạo Hierarchy prefix
-                    hierarchy_path = meta.get("hierarchy_path", "")
-                    prefix = f"[{self.doc_name} > {hierarchy_path}]\n" if hierarchy_path else f"[{self.doc_name}]\n"
-                    full_content = prefix + raw_content
+                    
                     
                     # Cập nhật metadata
                     meta["doc_name"] = self.doc_name

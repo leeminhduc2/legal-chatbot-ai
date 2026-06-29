@@ -2,11 +2,13 @@
 Embedding files with chromadb with given json files in data/chunked folder
 """
 import json
+from typing import Dict, Any
 import chromadb
 from pathlib import Path
 import uuid
 from FlagEmbedding import BGEM3FlagModel
 from chromadb.api.types import EmbeddingFunction, Documents, Embeddings
+import torch
 
 # 1. Tạo "bộ chuyển đổi" (Wrapper Class) cho bge-m3
 class BGEM3CustomEmbeddingFunction(EmbeddingFunction):
@@ -25,8 +27,19 @@ class BGEM3CustomEmbeddingFunction(EmbeddingFunction):
         )
         
         # Lấy mảng dense_vecs (numpy array) và chuyển thành list of lists (List[List[float]])
-        embeddings = output['dense_vecs'].tolist()
+        embeddings = torch.nn.functional.normalize(output['dense_vecs']).tolist()
         return embeddings
+
+    @staticmethod
+    def name() -> str:
+        return "my-ef"
+
+    def get_config(self) -> Dict[str, Any]:
+        return dict(model=self.model)
+
+    @staticmethod
+    def build_from_config(config: Dict[str, Any]) -> "EmbeddingFunction":
+        return BGEM3CustomEmbeddingFunction(config['model'])
 
 
 def embed_json_file(file_path: str | Path):
@@ -70,8 +83,7 @@ def embed_json_file(file_path: str | Path):
         collection.add(
             documents=documents[i:end],
             metadatas=metadatas[i:end],
-            ids=[str(uuid.uuid4()) for _ in range(i, end)],
-            
+            ids=[str(uuid.uuid4()) for _ in range(i, end)],    
         )
         print(f"  - Saved {end}/{len(chunks)} chunks...")
         
@@ -80,14 +92,14 @@ def embed_json_file(file_path: str | Path):
 if __name__ == "__main__":
     # Khởi tạo client một lần để tái sử dụng
     client = chromadb.PersistentClient(path="data/chroma/chroma_db2")
-    collection = client.get_or_create_collection(name="legal-texts2")
+    collection = client.get_or_create_collection(name="legal-texts_tt74",embedding_function=BGEM3CustomEmbeddingFunction(model_name = 'BAAI/bge-m3', use_fp16=True))
     # Chỉ định đường dẫn tới file JSON bạn muốn đọc
     target_file = Path("data\chunked\TT 74.2026_BTC.json")
     embed_json_file(target_file)
     # Query the database (for testing purpose)
     results = collection.query(
         query_texts=[
-            "Chỗ nào đề cập đến người nộp lệ phí ?"
+            "Cơ quan có thẩm quyền sẽ cấp những chứng chỉ gì liên quan đến lĩnh vực năng lực nguyên tử ?"
         ],
         n_results=10
     )
