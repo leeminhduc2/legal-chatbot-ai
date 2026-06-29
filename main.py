@@ -1,4 +1,6 @@
 from src.ingestion.embed import embed_json_file
+from src.ingestion.ingest import process_legal_documents
+from src.retrieval.retrieval import retrieve_from_knowledge_graph
 import argparse
 import sys
 from pathlib import Path
@@ -7,7 +9,7 @@ from pathlib import Path
 # if you run into "ModuleNotFoundError"
 sys.path.append(str(Path(__file__).parent))
 
-from src.ingestion.ingest import process_legal_documents
+
 
 def main():
     # 1. Initialize the argument parser
@@ -22,6 +24,8 @@ def main():
     ingest_parser = subparsers.add_parser("ingest", help="Ingest legal documents")
     # --- EMBED COMMAND ---
     embed_parser = subparsers.add_parser("embed", help = "Embed legal documents")
+    # --- GRAPH RETRIEVAL COMMAND ---
+    graph_retrieval_parser = subparsers.add_parser("graph-retrieve", help = "Retrieve legal document content in knowledge graph")
     
     # Add the argument that process_legal_documents expects (document_path)
     # We use a default value like "*.docx" to process all if no specific pattern is provided
@@ -39,6 +43,14 @@ def main():
         default="*.json",
         help="The glob pattern or file name to embed (e.g., '*.json' or 'TT 74.2026_BTC.json')"
     )
+
+    # Add the argument 
+    graph_retrieval_parser.add_argument(
+        "-q",
+        "--query",
+        type=str,
+        default="Ai là người ký ?",
+        help = "The question you want to ask for :D")
     
     # 3. Parse the arguments
     args = parser.parse_args()
@@ -57,6 +69,16 @@ def main():
                 embed_json_file(file_path=json_file)
         else:
             embed_json_file(file_path=args.path)
+    elif args.command == "graph-retrieve" :
+        print(f"Start retrieving information for question {args.query}")
+        result = retrieve_from_knowledge_graph(args.query)
+        print("Generated Cypher Query from LLM:")
+        print(result["cypher"])     # Cypher query đã sinh
+        print("Neo4j's returned result:")
+        print(result["results"])    # Kết quả từ Neo4j
+        print(f"Error code : {result["error"]}")      # None nếu thành công
+
+
         
     elif args.command is None:
         # If the user just runs `python main.py` without a command

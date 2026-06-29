@@ -14,7 +14,7 @@ python -m venv .venv
 
 ```bash
 pip install uv ## pip written in rust
-uv pip install chromadb FlagEmbedding python-docx openai
+uv pip install chromadb FlagEmbedding python-docx openai neo4j python-dotenv
 ```
 
 3. 
