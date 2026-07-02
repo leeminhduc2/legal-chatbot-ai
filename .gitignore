@@ -1,2 +1,7 @@
 todo.md
 .env
+.venv
+.agents
+.codex
+__pycache__
+
