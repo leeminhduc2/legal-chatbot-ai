@@ -14,7 +14,7 @@ python -m venv .venv
 
 ```bash
 pip install uv ## pip written in rust
-uv pip install chromadb FlagEmbedding python-docx openai neo4j python-dotenv flask werkzeug streamlit requests
+uv pip install chromadb FlagEmbedding elasticsearch python-docx openai neo4j python-dotenv flask werkzeug streamlit requests
 ```
 
 3. Start the Flask API
@@ -45,4 +45,17 @@ ELASTICSEARCH_API_KEY=replace-with-your-local-api-key
 # Alternative basic auth if you do not use API keys.
 ELASTICSEARCH_USERNAME=elastic
 ELASTICSEARCH_PASSWORD=replace-with-your-local-password
+```
+
+Publish also writes to Neo4j and Chroma. For a real publish run, configure
+`NEO4J_URI`, `NEO4J_USER`, `NEO4J_PASSWORD`, `CHROMA_PATH`, and
+`CHROMA_COLLECTION` in `.env`.
+
+For Neo4j Aura/cloud, use the database-specific values from the Aura console:
+
+```env
+NEO4J_URI=neo4j+s://your-instance.databases.neo4j.io
+NEO4J_USERNAME=your-database-username
+NEO4J_PASSWORD=replace-with-your-neo4j-password
+NEO4J_DATABASE=your-database-name
 ```

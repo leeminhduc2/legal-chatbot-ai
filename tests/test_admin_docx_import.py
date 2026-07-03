@@ -6,6 +6,7 @@ import sqlite3
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 from docx import Document
 
@@ -108,6 +109,135 @@ class AdminDocxImportTest(unittest.TestCase):
             content_type="multipart/form-data",
         )
         self.assertEqual(response.status_code, 403)
+
+    def test_admin_can_publish_ready_for_review_document_with_index_writers(self) -> None:
+        token = self._login("admin", "password")
+        import_payload = self._import_sample_document(token)
+        writers = make_fake_writers()
+
+        with patch(
+            "backend.services.indexing_service.build_default_indexing_providers",
+            return_value=writers,
+        ):
+            response = self.client.post(
+                f"/api/v1/admin/documents/{import_payload['document_id']}/publish",
+                headers=self._auth_headers(token),
+            )
+
+        self.assertEqual(response.status_code, 200, response.get_data(as_text=True))
+        payload = response.get_json()
+        self.assertEqual(payload["status"], "published")
+        self.assertEqual(payload["writers"]["neo4j"], "indexed")
+        self.assertEqual(payload["writers"]["chroma"], "indexed")
+        self.assertEqual(payload["writers"]["elasticsearch"], "indexed")
+        self.assertIn("default active-only retrieval", payload["warnings"][0])
+        for writer in writers:
+            self.assertEqual(writer.indexed_batches, [import_payload["import_batch_id"]])
+
+        detail = self.client.get(
+            f"/api/v1/admin/documents/{import_payload['document_id']}",
+            headers=self._auth_headers(token),
+        )
+        self.assertEqual(detail.status_code, 200, detail.get_data(as_text=True))
+        detail_payload = detail.get_json()
+        self.assertEqual(detail_payload["version"]["status"], "published")
+        self.assertEqual(detail_payload["document"]["active_version"], 1)
+        self.assertEqual(detail_payload["document"]["is_published"], 1)
+
+    def test_non_admin_cannot_publish(self) -> None:
+        admin_token = self._login("admin", "password")
+        import_payload = self._import_sample_document(admin_token)
+        AuthService(self.db_path).create_user("user", "password", ROLE_BUSINESS_USER)
+        user_token = self._login("user", "password")
+
+        response = self.client.post(
+            f"/api/v1/admin/documents/{import_payload['document_id']}/publish",
+            headers=self._auth_headers(user_token),
+        )
+
+        self.assertEqual(response.status_code, 403)
+
+    def test_publish_failure_keeps_document_ready_for_review_and_cleans_up(self) -> None:
+        token = self._login("admin", "password")
+        import_payload = self._import_sample_document(token)
+        writers = [
+            FakeIndexWriter("neo4j"),
+            FakeIndexWriter("chroma", fail_index=True),
+            FakeIndexWriter("elasticsearch"),
+        ]
+
+        with patch(
+            "backend.services.indexing_service.build_default_indexing_providers",
+            return_value=writers,
+        ):
+            response = self.client.post(
+                f"/api/v1/admin/documents/{import_payload['document_id']}/publish",
+                headers=self._auth_headers(token),
+            )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.get_json()["error"]["code"], "PUBLISH_FAILED")
+        self.assertEqual(writers[0].deleted_batches, [import_payload["import_batch_id"]])
+        self.assertEqual(writers[1].deleted_batches, [])
+
+        detail = self.client.get(
+            f"/api/v1/admin/documents/{import_payload['document_id']}",
+            headers=self._auth_headers(token),
+        )
+        self.assertEqual(detail.get_json()["version"]["status"], "ready_for_review")
+
+    def test_rollback_deletes_indexed_batch_and_marks_version_rolled_back(self) -> None:
+        token = self._login("admin", "password")
+        import_payload = self._import_sample_document(token)
+        with patch(
+            "backend.services.indexing_service.build_default_indexing_providers",
+            return_value=make_fake_writers(),
+        ):
+            publish = self.client.post(
+                f"/api/v1/admin/documents/{import_payload['document_id']}/publish",
+                headers=self._auth_headers(token),
+            )
+        self.assertEqual(publish.status_code, 200, publish.get_data(as_text=True))
+        publish_payload = publish.get_json()
+
+        rollback_writers = make_fake_writers()
+        with patch(
+            "backend.services.indexing_service.build_default_indexing_providers",
+            return_value=rollback_writers,
+        ):
+            rollback = self.client.post(
+                f"/api/v1/admin/pipeline/{publish_payload['pipeline_run_id']}/rollback",
+                headers=self._auth_headers(token),
+            )
+
+        self.assertEqual(rollback.status_code, 200, rollback.get_data(as_text=True))
+        rollback_payload = rollback.get_json()
+        self.assertEqual(rollback_payload["status"], "rolled_back")
+        self.assertIsNone(rollback_payload["restored_import_batch_id"])
+        for writer in rollback_writers:
+            self.assertEqual(writer.deleted_batches, [import_payload["import_batch_id"]])
+
+        detail = self.client.get(
+            f"/api/v1/admin/documents/{import_payload['document_id']}",
+            headers=self._auth_headers(token),
+        )
+        detail_payload = detail.get_json()
+        self.assertEqual(detail_payload["version"]["status"], "rolled_back")
+        self.assertIsNone(detail_payload["document"]["active_version"])
+        self.assertEqual(detail_payload["document"]["is_published"], 0)
+
+    def test_neo4j_database_config_is_available_for_cloud_sessions(self) -> None:
+        from backend.services.indexing_service import Neo4jGraphWriter
+
+        config = Config(
+            neo4j_uri="neo4j+s://example.databases.neo4j.io",
+            neo4j_user="example",
+            neo4j_password="secret",
+            neo4j_database="example",
+        )
+        writer = Neo4jGraphWriter(config)
+
+        self.assertEqual(writer._session_kwargs(), {"database": "example"})
 
     def test_rejects_missing_metadata_and_invalid_docx(self) -> None:
         token = self._login("admin", "password")
@@ -217,9 +347,48 @@ class AdminDocxImportTest(unittest.TestCase):
         self.assertEqual(response.status_code, 200, response.get_data(as_text=True))
         return response.get_json()["access_token"]
 
+    def _import_sample_document(self, token: str) -> dict:
+        response = self.client.post(
+            "/api/v1/admin/documents/import",
+            headers=self._auth_headers(token),
+            data={
+                "file": (make_docx_file(), "sample.docx"),
+                "validity_status": "unknown",
+            },
+            content_type="multipart/form-data",
+        )
+        self.assertEqual(response.status_code, 201, response.get_data(as_text=True))
+        return response.get_json()
+
     @staticmethod
     def _auth_headers(token: str) -> dict[str, str]:
         return {"Authorization": f"Bearer {token}"}
+
+
+class FakeIndexWriter:
+    def __init__(self, name: str, fail_index: bool = False):
+        self.name = name
+        self.fail_index = fail_index
+        self.indexed_batches: list[str] = []
+        self.deleted_batches: list[str] = []
+        self.relations_counts: list[int] = []
+
+    def index_chunks(self, chunks, relations=None) -> None:
+        if self.fail_index:
+            raise RuntimeError(f"{self.name} failed")
+        self.indexed_batches.append(chunks[0].import_batch_id)
+        self.relations_counts.append(len(relations or []))
+
+    def delete_by_batch(self, import_batch_id: str) -> None:
+        self.deleted_batches.append(import_batch_id)
+
+
+def make_fake_writers() -> list[FakeIndexWriter]:
+    return [
+        FakeIndexWriter("neo4j"),
+        FakeIndexWriter("chroma"),
+        FakeIndexWriter("elasticsearch"),
+    ]
 
 
 def make_docx_file() -> io.BytesIO:

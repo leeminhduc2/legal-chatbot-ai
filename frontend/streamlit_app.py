@@ -78,9 +78,21 @@ def render_import() -> None:
         document_number = st.text_input("Document number override")
         title = st.text_input("Title override")
         source_url = st.text_input("Source URL")
-        issued_date = st.text_input("Issued date")
-        effective_date = st.text_input("Effective date")
-        expiry_date = st.text_input("Expiry date")
+        issued_date = st.text_input(
+            "Issued date",
+            help="Use ISO date format: YYYY-MM-DD, for example 2026-07-03.",
+        )
+        st.caption("Issued date format: YYYY-MM-DD, for example 2026-07-03.")
+        effective_date = st.text_input(
+            "Effective date",
+            help="Use ISO date format: YYYY-MM-DD, for example 2026-07-03.",
+        )
+        st.caption("Effective date format: YYYY-MM-DD, for example 2026-07-03.")
+        expiry_date = st.text_input(
+            "Expiry date",
+            help="Use ISO date format: YYYY-MM-DD, for example 2026-07-03.",
+        )
+        st.caption("Expiry date format: YYYY-MM-DD, for example 2026-07-03.")
         validity_status = st.selectbox(
             "Validity status",
             ["unknown", "active", "expired", "replaced", "abolished", "suspended"],
@@ -162,6 +174,7 @@ def render_document_detail(document_id: str) -> None:
     detail = response.json()
     document = detail.get("document", {})
     version = detail.get("version", {})
+    version_status = version.get("status")
 
     left, right = st.columns(2)
     with left:
@@ -170,6 +183,8 @@ def render_document_detail(document_id: str) -> None:
     with right:
         st.markdown("#### Current Review Version")
         st.json(version)
+
+    render_publish_warnings(document, version, detail)
 
     st.markdown("#### Relations")
     relations = detail.get("relations", [])
@@ -191,7 +206,24 @@ def render_document_detail(document_id: str) -> None:
     else:
         st.info("No pipeline events found for this document version.")
 
-    st.button("Publish in Milestone 3", disabled=True)
+    can_publish = version_status == "ready_for_review"
+    if st.button("Publish", type="primary", disabled=not can_publish):
+        with st.spinner("Publishing and indexing..."):
+            publish_response = requests.post(
+                f"{API_BASE_URL}/admin/documents/{document_id}/publish",
+                headers=auth_headers(),
+                timeout=600,
+            )
+        if not publish_response.ok:
+            show_error(publish_response)
+            return
+        st.success("Published successfully!")
+        st.json(publish_response.json())
+        st.rerun()
+    if version_status == "published":
+        st.success("Published successfully!")
+    elif not can_publish:
+        st.caption("Publish is available only for ready_for_review documents.")
 
 
 def render_pipeline() -> None:
@@ -221,6 +253,37 @@ def render_pipeline() -> None:
             show_error(detail_response)
             return
         st.json(detail_response.json())
+    if st.button("Rollback run", disabled=not bool(run_id)):
+        rollback_response = requests.post(
+            f"{API_BASE_URL}/admin/pipeline/{run_id}/rollback",
+            headers=auth_headers(),
+            timeout=180,
+        )
+        if not rollback_response.ok:
+            show_error(rollback_response)
+            return
+        st.success("Rollback completed.")
+        st.json(rollback_response.json())
+
+
+def render_publish_warnings(
+    document: dict[str, Any],
+    version: dict[str, Any],
+    detail: dict[str, Any],
+) -> None:
+    warnings = []
+    if document.get("validity_status") == "unknown":
+        warnings.append(
+            "validity_status is unknown; default active-only retrieval may exclude this document."
+        )
+    if not document.get("effective_date"):
+        warnings.append("effective_date is missing.")
+    if not detail.get("relations"):
+        warnings.append("No admin-curated relations are available.")
+    metadata = parse_json(version.get("metadata_json"))
+    warnings.extend(metadata.get("warnings") or [])
+    for warning in dict.fromkeys(warnings):
+        st.warning(warning)
 
 
 def auth_headers() -> dict[str, str]:
@@ -234,6 +297,18 @@ def show_error(response: requests.Response) -> None:
         payload = response.text
     st.error(f"Request failed: {response.status_code}")
     st.json(payload)
+
+
+def parse_json(raw_value: Any) -> dict[str, Any]:
+    if not raw_value:
+        return {}
+    if isinstance(raw_value, dict):
+        return raw_value
+    try:
+        parsed = json.loads(str(raw_value))
+    except json.JSONDecodeError:
+        return {}
+    return parsed if isinstance(parsed, dict) else {}
 
 
 if __name__ == "__main__":

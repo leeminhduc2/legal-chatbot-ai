@@ -7,6 +7,7 @@ from backend.services.document_import_service import (
     DocumentImportError,
     DocumentImportService,
 )
+from backend.services.indexing_service import DocumentIndexingService, IndexingError
 
 
 admin_bp = Blueprint("admin", __name__, url_prefix="/api/v1/admin")
@@ -43,6 +44,19 @@ def get_document(document_id: str):
     return jsonify(detail)
 
 
+@admin_bp.post("/documents/<document_id>/publish")
+@require_role("admin")
+def publish_document(document_id: str):
+    try:
+        result = _get_indexing_service().publish_document(
+            document_id=document_id,
+            requested_by_user_id=g.current_user["id"],
+        )
+    except IndexingError as exc:
+        return error_response(exc.code, exc.message, exc.status_code)
+    return jsonify(result)
+
+
 @admin_bp.get("/pipeline")
 @require_role("admin")
 def list_pipeline_runs():
@@ -58,5 +72,22 @@ def get_pipeline_run(run_id: str):
     return jsonify(detail)
 
 
+@admin_bp.post("/pipeline/<run_id>/rollback")
+@require_role("admin")
+def rollback_pipeline_run(run_id: str):
+    try:
+        result = _get_indexing_service().rollback_pipeline(
+            run_id=run_id,
+            requested_by_user_id=g.current_user["id"],
+        )
+    except IndexingError as exc:
+        return error_response(exc.code, exc.message, exc.status_code)
+    return jsonify(result)
+
+
 def _get_import_service() -> DocumentImportService:
     return DocumentImportService(current_app.config["APP_CONFIG"])
+
+
+def _get_indexing_service() -> DocumentIndexingService:
+    return DocumentIndexingService(current_app.config["APP_CONFIG"])

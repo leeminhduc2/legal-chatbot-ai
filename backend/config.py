@@ -22,10 +22,11 @@ class Config:
     neo4j_uri: str = "bolt://localhost:7687"
     neo4j_user: str = "neo4j"
     neo4j_password: str = ""
+    neo4j_database: str = ""
     chroma_path: str = "data/chroma/legal"
     chroma_collection: str = "legal_chunks"
-    bm25_provider: str = "local"
-    elasticsearch_url: str = ""
+    bm25_provider: str = "elasticsearch"
+    elasticsearch_url: str = "http://localhost:9200"
     elasticsearch_index: str = "legal_chunks_bm25"
     elasticsearch_api_key: str = ""
     elasticsearch_username: str = ""
@@ -52,6 +53,7 @@ class Config:
                 os.getenv("NEO4J_USERNAME", cls.neo4j_user),
             ),
             neo4j_password=os.getenv("NEO4J_PASSWORD", cls.neo4j_password),
+            neo4j_database=os.getenv("NEO4J_DATABASE", cls.neo4j_database),
             chroma_path=os.getenv("CHROMA_PATH", cls.chroma_path),
             chroma_collection=os.getenv("CHROMA_COLLECTION", cls.chroma_collection),
             bm25_provider=os.getenv("BM25_PROVIDER", cls.bm25_provider),
