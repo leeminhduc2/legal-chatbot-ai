@@ -60,7 +60,7 @@ CREATE TABLE IF NOT EXISTS document_versions (
     id TEXT PRIMARY KEY,
     document_id TEXT NOT NULL,
     version INTEGER NOT NULL,
-    crawl_batch_id TEXT,
+    import_batch_id TEXT,
     raw_docx_path TEXT,
     preprocessed_text_path TEXT,
     chunk_json_path TEXT,
@@ -74,8 +74,27 @@ CREATE TABLE IF NOT EXISTS document_versions (
 CREATE INDEX IF NOT EXISTS idx_document_versions_document_id
 ON document_versions(document_id);
 
-CREATE INDEX IF NOT EXISTS idx_document_versions_crawl_batch_id
-ON document_versions(crawl_batch_id);
+CREATE INDEX IF NOT EXISTS idx_document_versions_import_batch_id
+ON document_versions(import_batch_id);
+
+CREATE TABLE IF NOT EXISTS document_relations (
+    id TEXT PRIMARY KEY,
+    source_document_id TEXT NOT NULL,
+    target_document_id TEXT,
+    target_document_number TEXT,
+    relation_type TEXT NOT NULL,
+    source_text TEXT,
+    import_batch_id TEXT,
+    is_published INTEGER NOT NULL DEFAULT 0 CHECK (is_published IN (0, 1)),
+    created_at TEXT NOT NULL,
+    FOREIGN KEY (source_document_id) REFERENCES document_registry(document_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_document_relations_source_document_id
+ON document_relations(source_document_id);
+
+CREATE INDEX IF NOT EXISTS idx_document_relations_import_batch_id
+ON document_relations(import_batch_id);
 
 CREATE TABLE IF NOT EXISTS pipeline_runs (
     id TEXT PRIMARY KEY,

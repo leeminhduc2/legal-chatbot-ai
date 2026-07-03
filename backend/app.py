@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import os
 import sys
 from pathlib import Path
 
@@ -10,6 +11,7 @@ from flask import Flask, jsonify
 if __package__ in {None, ""}:
     sys.path.append(str(Path(__file__).resolve().parents[1]))
 
+from backend.api.admin_routes import admin_bp
 from backend.api.auth_routes import auth_bp
 from backend.config import Config
 from backend.models.database import init_db
@@ -27,6 +29,7 @@ def create_app(config: Config | None = None) -> Flask:
     init_db(app_config.sqlite_db_path)
     seed_admin_user(app_config)
 
+    app.register_blueprint(admin_bp)
     app.register_blueprint(auth_bp)
 
     @app.get("/api/v1/health")
@@ -46,4 +49,9 @@ app = create_app()
 
 
 if __name__ == "__main__":
-    app.run(host="127.0.0.1", port=5000, debug=True)
+    flask_debug = os.getenv("FLASK_DEBUG", "1").strip().lower()
+    app.run(
+        host="127.0.0.1",
+        port=5000,
+        debug=flask_debug in {"1", "true", "yes", "on"},
+    )

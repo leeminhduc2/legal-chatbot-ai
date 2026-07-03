@@ -6,8 +6,8 @@
 | --- | --- |
 | Document | Technical Requirements Document |
 | Product | BaoHiem Legal AI Workspace |
-| Source PRD | `docs/prd.md` version 0.2 |
-| Version | 0.1 |
+| Source PRD | `docs/prd.md` version 0.3 |
+| Version | 0.2 |
 | Date | 2026-07-02 |
 | Owner | Product/Architecture Lead |
 | Target Release | Local MVP trong 1 tuần |
@@ -24,9 +24,9 @@ TRD này chuyển PRD thành thiết kế kỹ thuật đủ cụ thể để tr
 - Flask API backend.
 - Multi-user nhẹ với role `admin`, `business_user`, `guest`.
 - SQLite app database local.
-- Crawl văn bản theo số hiệu từ `vbpl.vn`, chỉ hỗ trợ `.docx`.
-- Lưu raw file, raw metadata, normalized metadata và audit/pipeline state.
-- Neo4j graph cấp 1 giữa văn bản.
+- Admin upload trực tiếp văn bản pháp luật dạng `.docx`; không crawl theo số hiệu từ `wsvbpl.moj.gov.vn`/`vbpl.vn` trong MVP.
+- Lưu raw file, metadata do admin nhập/trích xuất, normalized metadata và audit/pipeline state.
+- Neo4j graph cấp 1 giữa văn bản chỉ từ quan hệ do admin nhập hoặc xác nhận.
 - Neo4j graph cấp 2 theo cấu trúc văn bản.
 - ChromaDB dense vector database.
 - BM25 search local qua provider abstraction.
@@ -41,7 +41,8 @@ TRD này chuyển PRD thành thiết kế kỹ thuật đủ cụ thể để tr
 - Production security.
 - Cloud deployment.
 - SSO/MFA/reset password.
-- Crawl nguồn ngoài `vbpl.vn`.
+- Import/crawl văn bản theo số hiệu từ `wsvbpl.moj.gov.vn`/`vbpl.vn`.
+- Tự động lấy quan hệ sửa đổi/thay thế/bãi bỏ từ nguồn nhà nước khi chưa có quyền truy cập hợp lệ.
 - PDF/HTML legal-document ingestion khi không có `.docx`.
 - Version history đầy đủ theo thời gian cho từng điều/khoản.
 - Template `.docx` thật.
@@ -71,7 +72,7 @@ Flask API Backend
   |
   +-- Auth/User Service -------- SQLite
   +-- Admin Document Service --- SQLite + raw file storage
-  +-- Ingestion Pipeline ------- vbpl.vn + docx parser + LLM splitter
+  +-- Ingestion Pipeline ------- admin DOCX upload + metadata form + docx parser + LLM splitter
   +-- Indexing Service --------- Neo4j + ChromaDB + BM25
   +-- Retrieval Service -------- Hybrid retrieval + answer generation
   +-- Contract Review Service -- docx extraction + rules + retrieval
@@ -106,7 +107,7 @@ backend/
   services/
     auth_service.py
     user_service.py
-    crawl_service.py
+    document_upload_service.py
     ingestion_service.py
     indexing_service.py
     retrieval_service.py
@@ -193,8 +194,8 @@ SQLite là source of truth cho app-level state: users, pipeline, document regist
 | `document_id` | TEXT PK | Stable UUID. |
 | `document_number` | TEXT | Số hiệu. |
 | `title` | TEXT | Tên văn bản. |
-| `source_system` | TEXT | `vbpl.vn`. |
-| `source_url` | TEXT | Canonical source URL. |
+| `source_system` | TEXT | `admin_upload` by default. |
+| `source_url` | TEXT | Optional canonical source URL entered by admin. |
 | `sector` | TEXT | Ngành. |
 | `domain` | TEXT | Lĩnh vực. |
 | `issuing_body` | TEXT | Cơ quan ban hành. |
@@ -205,7 +206,7 @@ SQLite là source of truth cho app-level state: users, pipeline, document regist
 | `effective_date` | TEXT | ISO date. |
 | `expiry_date` | TEXT | ISO date nullable. |
 | `validity_status` | TEXT | `active`, `expired`, `replaced`, `abolished`, `suspended`, `unknown`. |
-| `raw_metadata_json` | TEXT | Raw metadata JSON. |
+| `raw_metadata_json` | TEXT | Metadata entered by admin plus extraction hints from DOCX. |
 | `active_version` | INTEGER | Published version. |
 | `is_published` | INTEGER | 0/1. |
 | `is_deleted` | INTEGER | Soft delete. |
@@ -219,7 +220,7 @@ SQLite là source of truth cho app-level state: users, pipeline, document regist
 | `id` | TEXT PK | UUID. |
 | `document_id` | TEXT | FK logical. |
 | `version` | INTEGER | Monotonic per document. |
-| `crawl_batch_id` | TEXT | Batch that created version. |
+| `import_batch_id` | TEXT | Batch that created version. |
 | `raw_docx_path` | TEXT | Original `.docx`. |
 | `preprocessed_text_path` | TEXT | Extracted text. |
 | `chunk_json_path` | TEXT | Chunk JSON. |
@@ -229,7 +230,7 @@ SQLite là source of truth cho app-level state: users, pipeline, document regist
 
 #### `document_relations`
 
-Stores normalized relations for audit/rebuild. Neo4j is the graph index.
+Stores admin-curated normalized relations for audit/rebuild. Neo4j is the graph index. DOCX upload alone is not treated as enough evidence to create document-level legal relations.
 
 | Column | Type | Notes |
 | --- | --- | --- |
@@ -237,8 +238,8 @@ Stores normalized relations for audit/rebuild. Neo4j is the graph index.
 | `source_document_id` | TEXT | From document. |
 | `target_document_id` | TEXT | To document. |
 | `relation_type` | TEXT | Canonical relation label. |
-| `source_text` | TEXT | Raw relation text from source if available. |
-| `crawl_batch_id` | TEXT | Batch source. |
+| `source_text` | TEXT | Admin note, source excerpt, or verification text if available. |
+| `import_batch_id` | TEXT | Batch source. |
 | `is_published` | INTEGER | 0/1. |
 
 #### `pipeline_runs`
@@ -248,7 +249,7 @@ Stores normalized relations for audit/rebuild. Neo4j is the graph index.
 | `id` | TEXT PK | Batch/job UUID. |
 | `pipeline_type` | TEXT | `import_document`, `update_effectivity`, `rebuild_indexes`. |
 | `requested_by_user_id` | TEXT | User UUID. |
-| `input_json` | TEXT | Example: document number. |
+| `input_json` | TEXT | Upload metadata, original filename, and admin-provided fields. |
 | `status` | TEXT | See pipeline states. |
 | `error_message` | TEXT | Nullable. |
 | `created_at` | TEXT | ISO datetime. |
@@ -296,8 +297,7 @@ Stores normalized relations for audit/rebuild. Neo4j is the graph index.
 
 ```text
 pending
-crawling
-downloaded
+uploaded
 parsed
 chunked
 graph_indexed
@@ -339,6 +339,8 @@ UI labels:
 
 Store canonical directed edges only. UI and query layer can derive inverse relations by querying incoming edges. This avoids duplicate inconsistency. If a future query is too slow, inverse materialized edges can be added as an optimization.
 
+Document-level edges are curated data. The importer may create the `Document` node from uploaded DOCX metadata, but it must create graph cấp 1 relation edges only when admin provides or confirms relation records.
+
 ### 10.2 Node Labels
 
 ```text
@@ -367,7 +369,7 @@ issued_date
 effective_date
 expiry_date
 validity_status
-crawl_batch_id
+import_batch_id
 published_version
 is_published
 ```
@@ -389,7 +391,7 @@ validity_status
 hierarchy_path
 content
 published_version
-crawl_batch_id
+import_batch_id
 is_published
 ```
 
@@ -510,8 +512,8 @@ Every vector record must include:
   "document_number": "string",
   "document_title": "string",
   "document_type": "string",
-  "source_system": "vbpl.vn",
-  "source_url": "string",
+  "source_system": "admin_upload",
+  "source_url": "string|null",
   "sector": "string",
   "domain": "string",
   "issuing_body": "string",
@@ -533,7 +535,7 @@ Every vector record must include:
   "citation_label": "string",
   "neo4j_node_id": "string",
   "published_version": 1,
-  "crawl_batch_id": "string"
+  "import_batch_id": "string"
 }
 ```
 
@@ -561,7 +563,7 @@ Define a provider interface:
 ```python
 class BM25Provider:
     def index_chunks(self, chunks: list[ChunkRecord]) -> None: ...
-    def delete_by_batch(self, crawl_batch_id: str) -> None: ...
+    def delete_by_batch(self, import_batch_id: str) -> None: ...
     def search(self, query: str, filters: dict, top_k: int) -> list[SearchHit]: ...
 ```
 
@@ -591,56 +593,60 @@ BM25 index document:
   "validity_status": "active",
   "is_published": 1,
   "published_version": 1,
-  "crawl_batch_id": "string"
+  "import_batch_id": "string"
 }
 ```
 
 ## 13. Ingestion Pipeline
 
-### 13.1 Import by Document Number
+### 13.1 Import by Admin DOCX Upload
 
 Input:
 
-```json
-{
-  "document_number": "274/2025/ND-CP"
-}
-```
+`multipart/form-data` with:
+
+| Field | Required | Notes |
+| --- | --- | --- |
+| `file` | Yes | `.docx` legal document uploaded by admin. |
+| `document_number` | Yes | Document number entered by admin. |
+| `title` | Yes | Document title entered by admin or confirmed from extraction. |
+| `source_url` | No | Original source URL if admin has it. |
+| `issued_date` | No | ISO date if known. |
+| `effective_date` | No | ISO date if known. |
+| `expiry_date` | No | ISO date if known. |
+| `validity_status` | No | Defaults to `unknown` if not supplied. |
+| `relations_json` | No | Admin-curated document relations, not inferred from upload alone. |
 
 Pipeline:
 
 1. Create `pipeline_runs` row with `pending`.
-2. Search `vbpl.vn` by document number.
-3. Select best result.
-4. Download `.docx`.
-5. If no `.docx`, mark `failed` with `UNSUPPORTED_SOURCE_FORMAT`.
-6. Save raw `.docx` to `data/raw/{batch_id}/{document_number}.docx`.
-7. Extract raw metadata and save to SQLite.
-8. Parse `.docx` to text.
-9. Chunk text into `Article`/`Clause` units.
-10. Normalize metadata and inherit to chunks.
-11. Write chunk JSON to `data/chunked/{batch_id}/{document_id}.json`.
-12. Build Neo4j document graph.
-13. Build Neo4j structure graph.
-14. Add vectors to ChromaDB.
-15. Add chunks to BM25.
-16. Mark `ready_for_review`.
-17. Admin reviews.
-18. Admin publishes.
+2. Validate extension and MIME signature as `.docx`; otherwise mark `failed` with `DOCX_REQUIRED`.
+3. Save raw `.docx` to `data/raw/{import_batch_id}/{safe_filename}.docx`.
+4. Mark state `uploaded`.
+5. Parse `.docx` to text.
+6. Extract best-effort metadata hints from text, but do not trust them until admin review.
+7. Merge admin-provided metadata with extraction hints.
+8. Chunk text into `Article`/`Clause` units.
+9. Normalize metadata and inherit to chunks.
+10. Write chunk JSON to `data/chunked/{import_batch_id}/{document_id}.json`.
+11. Build Neo4j structure graph.
+12. Build Neo4j document node and document-level relations only for admin-curated `relations_json`.
+13. Add vectors to ChromaDB.
+14. Add chunks to BM25.
+15. Mark `ready_for_review`.
+16. Admin reviews metadata, extraction warnings, and optional relations.
+17. Admin publishes.
 
-### 13.2 Best Result Selection
+### 13.2 Admin-Curated Relation Handling
 
-Scoring heuristic:
+Because MVP does not access `wsvbpl.moj.gov.vn`/`vbpl.vn`, the system must not infer document-level legal relations from the uploaded DOCX alone.
 
-| Signal | Weight |
-| --- | --- |
-| Exact normalized document number match | 50 |
-| Has `.docx` download | 30 |
-| Source URL belongs to `vbpl.vn` document detail page | 10 |
-| Title contains expected document type/number | 5 |
-| Has metadata fields needed for validity | 5 |
+Rules:
 
-If top score < 70, mark `ready_for_review` but require admin manual confirmation before download/indexing if possible. If MVP cannot support manual selection UI yet, mark `failed` with `AMBIGUOUS_SEARCH_RESULT`.
+- If `relations_json` is absent, create only the `Document` node and structure graph; do not create relation edges in graph cấp 1.
+- If a relation references a document that is not in `document_registry`, store it as unresolved metadata and show it as `unresolved_relation` in admin UI.
+- If admin later imports the target document, the system may resolve the relation during rebuild.
+- Chatbot and contract review must treat missing relation data as `insufficient_data`, not as proof that no relation exists.
 
 ### 13.3 Metadata Normalization
 
@@ -709,12 +715,12 @@ MVP rollback is batch-based.
 
 Rollback should:
 
-1. Identify `crawl_batch_id`.
+1. Identify `import_batch_id`.
 2. Mark affected SQLite `document_versions` as `rolled_back`.
 3. Restore previous active version in `document_registry` if available.
-4. In Neo4j, set nodes/relationships with `crawl_batch_id` to `is_published = false`.
-5. In ChromaDB, delete records by `crawl_batch_id` if supported; otherwise rebuild collection from published SQLite/chunk data.
-6. In BM25, delete records by `crawl_batch_id` or rebuild index.
+4. In Neo4j, set nodes/relationships with `import_batch_id` to `is_published = false`.
+5. In ChromaDB, delete records by `import_batch_id` if supported; otherwise rebuild collection from published SQLite/chunk data.
+6. In BM25, delete records by `import_batch_id` or rebuild index.
 7. Mark pipeline `rolled_back`.
 
 If any index rollback fails, app DB remains the source of truth and system must show `partial rollback failure`.
@@ -734,7 +740,7 @@ If any index rollback fails, app DB remains the source of truth and system must 
 2. Apply default filter: published + active documents.
 3. Run dense vector search top K.
 4. Run BM25 search top K.
-5. Query Neo4j document graph for relation/effectivity context.
+5. Query Neo4j document graph for relation/effectivity context if admin-curated relations exist.
 6. Query Neo4j structure graph for article/clause context.
 7. Merge hits by `chunk_id` / `neo4j_node_id`.
 8. Rerank with weighted score.
@@ -758,15 +764,16 @@ confidence =
 
 Definitions:
 
-- `graph_support_score = 1` if Neo4j confirms document/article/clause relation for top citation, else `0.5` if only document exists, else `0`.
+- `graph_support_score = 1` if Neo4j confirms article/clause structure and any available curated relation for top citation, `0.7` if structure graph confirms article/clause but no document-level relation data exists, `0.5` if only document exists, else `0`.
 - `citation_score = 1` if at least one citation has document + article/clause, else `0.5` if document-only, else `0`.
-- `validity_score = 1` if all top citations are active, else `0`.
+- `validity_score = 1` if all top citations are active, `0.5` if status is `unknown` and warning is shown, else `0`.
 
 Warning thresholds:
 
 - `confidence < 0.55`: show "Không đủ căn cứ chắc chắn".
 - no citation: answer must refuse or ask admin to update data.
 - no active result: answer must say no active legal basis found in current knowledge base.
+- missing document-level relation data: answer may proceed for content lookup but must warn that amendment/replacement/abolition relationships may be incomplete.
 
 ### 15.4 Context Pack
 
@@ -916,10 +923,10 @@ Base path:
 | GET | `/admin/documents/{document_id}` | admin | Document detail. |
 | PATCH | `/admin/documents/{document_id}` | admin | Edit normalized metadata. |
 | DELETE | `/admin/documents/{document_id}` | admin | Soft delete. |
-| POST | `/admin/documents/import` | admin | Start import by document number. |
+| POST | `/admin/documents/import` | admin | Upload legal `.docx` and start import pipeline. |
 | POST | `/admin/documents/{document_id}/publish` | admin | Publish reviewed version. |
 | POST | `/admin/pipeline/{run_id}/rollback` | admin | Rollback batch. |
-| POST | `/admin/effectivity/update` | admin | Manual effectivity update. |
+| POST | `/admin/effectivity/update` | admin | Manual metadata/effectivity update from admin input. |
 
 ### 18.4 Pipeline
 
@@ -987,7 +994,7 @@ Pages:
 - Contract Review.
 - Docx Draft.
 - Admin Documents.
-- Admin Import.
+- Admin DOCX Import.
 - Admin Pipeline.
 - Admin Users.
 
@@ -1031,9 +1038,9 @@ Common error codes:
 | `AUTH_REQUIRED` | Not logged in. |
 | `FORBIDDEN` | Role not allowed. |
 | `DOCUMENT_NOT_FOUND` | Document missing. |
-| `VBPL_SEARCH_FAILED` | Cannot search source. |
-| `AMBIGUOUS_SEARCH_RESULT` | Multiple results with insufficient confidence. |
-| `UNSUPPORTED_SOURCE_FORMAT` | No `.docx`. |
+| `DOCX_REQUIRED` | Uploaded file is missing or not `.docx`. |
+| `METADATA_INCOMPLETE` | Required admin metadata is missing. |
+| `RELATIONS_UNAVAILABLE` | Document-level relations are unavailable or not yet curated. |
 | `DOCX_PARSE_FAILED` | Cannot parse document. |
 | `CHUNK_VALIDATION_FAILED` | Chunk schema invalid. |
 | `NEO4J_INDEX_FAILED` | Graph indexing failed. |
@@ -1109,7 +1116,7 @@ Pass criteria:
 
 1. Keep existing `src/ingestion` functions but wrap them behind `IngestionService`.
 2. Fix hardcoded Chroma path/collection in embed logic.
-3. Add stable `document_id`, `chunk_id`, `crawl_batch_id`.
+3. Add stable `document_id`, `chunk_id`, `import_batch_id`.
 4. Add SQLite app DB and repositories.
 5. Add Neo4j graph writer separate from text-to-Cypher retriever.
 6. Add BM25 provider.
@@ -1127,10 +1134,10 @@ Pass criteria:
 - Auth/session.
 - Streamlit login.
 
-### Milestone 2: Admin Import
+### Milestone 2: Admin DOCX Import
 
-- Import by document number.
-- `.docx` download or unsupported error.
+- Admin `.docx` upload import.
+- Required metadata validation and DOCX-only error handling.
 - Metadata extraction and pipeline state.
 - Admin review page.
 
@@ -1163,11 +1170,12 @@ Pass criteria:
 
 ## 26. Open Technical Decisions
 
-- Exact crawler implementation for `vbpl.vn`: requests/BeautifulSoup vs Playwright.
 - Whether BM25 default should be SQLite FTS5 or Elasticsearch local.
 - Exact LLM model names and token/cost limits.
 - Whether to use background worker thread/process for long import jobs.
 - How much manual admin editing is allowed before publish.
+- Which metadata fields should block publish versus only produce warnings.
+- How unresolved document relations should be reviewed and resolved after later imports.
 - Whether Guest can access any real retrieval endpoint.
 - Whether to store chat history in MVP UI.
 
@@ -1176,10 +1184,11 @@ Pass criteria:
 MVP is technically acceptable when:
 
 - Admin can create users and assign roles.
-- Admin can import a known `vbpl.vn` `.docx` document by number.
+- Admin can upload a legal `.docx` document with required metadata.
 - Import pipeline reaches `ready_for_review`.
 - Admin can publish imported document.
 - Neo4j contains document and structure graph for the document.
+- Neo4j contains document-level relation edges only when admin provided/confirmed them; otherwise UI and answer warnings show relation data is unavailable.
 - ChromaDB contains vector chunks with required metadata.
 - BM25 search returns active chunks with citations.
 - Chat query returns answer, confidence and citation.

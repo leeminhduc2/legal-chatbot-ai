@@ -12,6 +12,7 @@ Một ứng dụng AI nội bộ chạy local, hỗ trợ tra cứu pháp luật
 | --- | --- | --- | --- |
 | 0.1 | 2026-07-01 | Product/Architecture Lead | Tạo PRD bản đầu từ yêu cầu trong `requirements.md`, hiện trạng codebase CLI, và các quyết định phạm vi MVP đã chốt. |
 | 0.2 | 2026-07-02 | Product/Architecture Lead | Cập nhật cấu trúc knowledge graph 2 cấp và metadata vector database theo mô hình metadata/quan hệ văn bản từ giao diện tham chiếu. |
+| 0.3 | 2026-07-02 | Product/Architecture Lead | Tạm bỏ import bằng crawl theo số hiệu từ `wsvbpl.moj.gov.vn`/`vbpl.vn`; chuyển MVP sang upload trực tiếp file `.docx` bởi admin và ghi rõ giới hạn quan hệ văn bản/knowledge graph. |
 
 ## Overview
 
@@ -35,12 +36,12 @@ Do sản phẩm hướng tới dùng thật trong khoảng 1 tuần, success met
 - **Legal answer accuracy >= 80%** trên bộ câu hỏi kiểm thử nội bộ về lĩnh vực bảo hiểm.
 - **Citation coverage >= 90%**: câu trả lời pháp lý phải có ít nhất một citation hợp lệ tới văn bản/điều/khoản liên quan.
 - **Effective-document retrieval rate >= 90%**: kết quả truy xuất mặc định chỉ dùng văn bản còn hiệu lực, trừ khi người dùng/admin yêu cầu kiểm tra văn bản hết hiệu lực.
-- **Admin ingest success rate >= 80%** với danh sách số hiệu văn bản thử nghiệm có file `.docx` trên `vbpl.vn`.
+- **Admin DOCX ingest success rate >= 80%** với danh sách file `.docx` pháp luật do admin tải lên trực tiếp.
 
 ### Secondary Metrics
 
 - Thời gian phản hồi chatbot cho câu hỏi thông thường <= 20 giây trong môi trường local.
-- Pipeline import một văn bản có trạng thái rõ ràng: pending, crawling, parsed, indexed, published hoặc failed.
+- Pipeline import một văn bản có trạng thái rõ ràng: pending, uploaded, parsed, indexed, published hoặc failed.
 - Rà soát hợp đồng trả được báo cáo có cấu trúc với trạng thái thẩm quyền và hiệu lực cho các trường hợp có đủ dữ liệu đầu vào.
 - Có thể rollback một lần import/update đã publish mà không làm hỏng dữ liệu đang dùng.
 
@@ -52,7 +53,7 @@ BaoHiem Legal AI Workspace là trợ lý pháp lý nội bộ cho lĩnh vực b�
 
 ### Admin Messaging
 
-Admin có thể nhập văn bản pháp luật theo số hiệu từ nguồn `vbpl.vn`, kiểm tra trạng thái xử lý, cập nhật hiệu lực định kỳ, quản lý dữ liệu đã publish và rollback khi phát hiện lỗi.
+Admin có thể upload trực tiếp file `.docx` văn bản pháp luật đã tải sẵn, nhập/chỉnh metadata cần thiết, kiểm tra trạng thái xử lý, quản lý dữ liệu đã publish và rollback khi phát hiện lỗi. MVP không gọi `wsvbpl.moj.gov.vn`/`vbpl.vn` để crawl theo số hiệu vì nguồn này yêu cầu quyền truy cập.
 
 ### Trust/Safety Messaging
 
@@ -66,8 +67,8 @@ Sản phẩm không thay thế chuyên gia pháp lý. Các kết quả trả l�
 | --- | --- | --- |
 | Day 1 | Product/Architecture | Chốt PRD, TRD, data model MVP, pipeline states, API boundary. |
 | Day 2 | Backend Foundation | Flask API, auth nhẹ, role Admin/User/Guest, SQLite app DB, cấu trúc service layer. |
-| Day 3 | Admin Data Pipeline | Crawl theo số hiệu từ `vbpl.vn`, chỉ hỗ trợ `.docx`, lưu raw/audit, parse/chunk/metadata. |
-| Day 4 | Indexing | ChromaDB dense embedding, BM25 index, Neo4j graph cấp 1 và cấp 2 cấu trúc. |
+| Day 3 | Admin Data Pipeline | Upload trực tiếp file `.docx`, lưu raw/audit, nhập metadata tối thiểu, parse/chunk. |
+| Day 4 | Indexing | ChromaDB dense embedding, BM25 index, Neo4j graph cấp 2 cấu trúc; graph cấp 1 chỉ tạo từ metadata/quan hệ admin đã nhập. |
 | Day 5 | Retrieval & Chat | Hybrid retrieval, lọc văn bản còn hiệu lực trước retrieve, trả lời có citation và confidence. |
 | Day 6 | Contract Review & Docx Skeleton | Upload hợp đồng, module rà soát thẩm quyền/hiệu lực, báo cáo sơ bộ, khung sinh `.docx` chưa có template thật. |
 | Day 7 | Streamlit UX & QA | UI cho User/Admin/Guest, test set, rollback demo, sửa lỗi release. |
@@ -77,7 +78,8 @@ Sản phẩm không thay thế chuyên gia pháp lý. Các kết quả trả l�
 - Chuẩn hóa bộ rule rà soát hợp đồng.
 - Bổ sung template thật cho tờ trình/hợp đồng.
 - Tăng cường bảo mật, audit log, backup/restore.
-- Tối ưu crawling, deduplication, confidence scoring và evaluation.
+- Bổ sung workflow metadata/quan hệ văn bản thủ công tốt hơn, deduplication, confidence scoring và evaluation.
+- Chỉ xem xét tích hợp lại nguồn `wsvbpl.moj.gov.vn`/`vbpl.vn` khi có quyền truy cập hợp lệ hoặc API/nguồn dữ liệu ổn định.
 
 ## Personas
 
@@ -97,10 +99,12 @@ Người vận hành kỹ thuật chịu trách nhiệm quản lý kho văn bả
 
 Nhu cầu chính:
 
-- Thêm văn bản theo số hiệu.
+- Upload file `.docx` văn bản pháp luật.
+- Nhập hoặc chỉnh metadata tối thiểu như số hiệu, tên văn bản, cơ quan ban hành, ngày hiệu lực, trạng thái hiệu lực.
+- Nhập thủ công quan hệ văn bản nếu có căn cứ.
 - Theo dõi trạng thái pipeline.
 - Quản lý dữ liệu đã publish.
-- Chạy cập nhật hiệu lực định kỳ thủ công.
+- Cập nhật metadata/hiệu lực thủ công khi có căn cứ.
 - Rollback nếu import/update sai.
 
 ### Guest
@@ -116,26 +120,26 @@ Nhu cầu chính:
 
 ### Scenario 1: Business User Hỏi Về Quy Định Bảo Hiểm
 
-Một nhân sự nghiệp vụ cần biết quy định hiện hành về một vấn đề bảo hiểm. Người dùng đăng nhập, nhập câu hỏi tự nhiên. Hệ thống nhận diện đây là câu hỏi nội dung, lọc trước các văn bản còn hiệu lực, truy xuất kết hợp dense embedding, BM25, Neo4j graph cấp 1, Neo4j graph cấp 2, sau đó sinh câu trả lời có format cố định. Câu trả lời phải nêu căn cứ theo văn bản số nào, điều/khoản nào, trạng thái hiệu lực và confidence.
+Một nhân sự nghiệp vụ cần biết quy định hiện hành về một vấn đề bảo hiểm. Người dùng đăng nhập, nhập câu hỏi tự nhiên. Hệ thống nhận diện đây là câu hỏi nội dung, lọc trước các văn bản còn hiệu lực nếu metadata đã có, truy xuất kết hợp dense embedding, BM25, Neo4j graph cấp 2 và Neo4j graph cấp 1 nếu có quan hệ được admin nhập thủ công, sau đó sinh câu trả lời có format cố định. Câu trả lời phải nêu căn cứ theo văn bản số nào, điều/khoản nào, trạng thái hiệu lực và confidence; nếu thiếu metadata hiệu lực hoặc quan hệ, hệ thống phải cảnh báo.
 
 ### Scenario 2: Business User Tìm Theo Từ Khóa
 
 Người dùng muốn tìm nhanh các đoạn có chứa một thuật ngữ cụ thể. Hệ thống ưu tiên BM25, vẫn áp dụng lọc văn bản còn hiệu lực, hiển thị danh sách kết quả có văn bản/điều/khoản/citation. Nếu confidence thấp hoặc thiếu citation, hệ thống cảnh báo.
 
-### Scenario 3: Admin Import Văn Bản Theo Số Hiệu
+### Scenario 3: Admin Upload Văn Bản DOCX
 
-Admin nhập số hiệu văn bản. Hệ thống truy vấn `vbpl.vn`, tự chọn kết quả phù hợp theo tiêu chuẩn nội bộ, chỉ tải bản `.docx`. Nếu không có `.docx`, hệ thống báo lỗi không hỗ trợ. Nếu tải thành công, hệ thống lưu file gốc, raw metadata, audit record, parse nội dung, cập nhật graph cấp 1, graph cấp 2, ChromaDB và BM25. Admin review kết quả trước khi publish.
+Admin upload file `.docx` văn bản pháp luật đã tải sẵn. Hệ thống lưu file gốc, audit record, parse nội dung, đề xuất metadata có thể trích xuất từ nội dung file, chunk theo điều/khoản, cập nhật graph cấp 2, ChromaDB và BM25. Admin nhập/chỉnh metadata tối thiểu và có thể nhập quan hệ văn bản thủ công trước khi publish. Nếu không có quan hệ được nhập, graph cấp 1 không được tạo quan hệ suy đoán.
 
-### Scenario 4: Admin Cập Nhật Hiệu Lực Định Kỳ
+### Scenario 4: Admin Cập Nhật Metadata/Hiệu Lực Thủ Công
 
-Admin bấm nút cập nhật hiệu lực. UI hiển thị cảnh báo: "Việc cập nhật sẽ tốn nhiều thời gian và tài nguyên, do đó chỉ nên thực hiện định kỳ theo chu kỳ dài. Bạn có chắc chắn muốn tiếp tục không?" Sau khi xác nhận, hệ thống chạy pipeline cập nhật metadata/quan hệ hiệu lực, ghi trạng thái từng bước và cho phép rollback nếu kết quả sai.
+Admin mở màn hình quản lý văn bản để chỉnh trạng thái hiệu lực, ngày hiệu lực/ngày hết hiệu lực và quan hệ sửa đổi, thay thế, bãi bỏ nếu có căn cứ. UI phải hiển thị cảnh báo rằng dữ liệu này không được tự động xác minh từ `wsvbpl.moj.gov.vn`/`vbpl.vn` trong MVP. Sau khi admin xác nhận, hệ thống ghi phiên bản metadata mới, cập nhật index/graph tương ứng và cho phép rollback nếu kết quả sai.
 
 ### Scenario 5: Business User Rà Soát Hợp Đồng
 
-Người dùng upload hợp đồng. Hệ thống trích xuất các thông tin đầu vào cần thiết cho module rà soát thẩm quyền và hiệu lực, gồm tên cơ quan ban hành, chức danh người ký, ngày hết hiệu lực và dữ liệu quan hệ thay thế/bãi bỏ nếu có. Hệ thống trả báo cáo sơ bộ theo module:
+Người dùng upload hợp đồng. Hệ thống trích xuất các thông tin đầu vào cần thiết cho module rà soát thẩm quyền và hiệu lực, gồm tên cơ quan ban hành, chức danh người ký, ngày hết hiệu lực và dữ liệu quan hệ thay thế/bãi bỏ nếu đã có trong metadata do admin quản lý. Hệ thống trả báo cáo sơ bộ theo module:
 
 - Rà soát thẩm quyền: tên cơ quan ban hành đúng/không đúng thẩm quyền; chức danh người ký đúng/không đúng thẩm quyền.
-- Rà soát hiệu lực: văn bản, điều luật, căn cứ viện dẫn còn hiệu lực hay không; có bị sửa đổi, bổ sung, thay thế, bãi bỏ hoặc xung đột hiệu lực hay không.
+- Rà soát hiệu lực: văn bản, điều luật, căn cứ viện dẫn còn hiệu lực hay không nếu metadata đủ; có bị sửa đổi, bổ sung, thay thế, bãi bỏ hoặc xung đột hiệu lực hay không nếu quan hệ đã được admin nhập. Nếu thiếu metadata/quan hệ, báo `không đủ dữ liệu` thay vì suy luận.
 
 ### Scenario 6: User Tạo Khung File Docx
 
@@ -153,10 +157,10 @@ Lý do: sản phẩm có phân quyền admin/người dùng rõ ràng và cần 
 
 ### P0 - Admin Legal Document Ingestion
 
-- Là Admin, tôi có thể nhập số hiệu văn bản để hệ thống crawl từ `vbpl.vn`.
-- Hệ thống chỉ hỗ trợ file `.docx`; nếu không có `.docx`, báo lỗi không hỗ trợ.
-- Hệ thống tự chọn kết quả phù hợp nếu có nhiều kết quả, bản hợp nhất, bản sửa đổi hoặc lỗi metadata theo tiêu chuẩn nội bộ.
-- Hệ thống lưu file gốc, metadata raw, dữ liệu chuẩn hóa, trạng thái pipeline và audit record.
+- Là Admin, tôi có thể upload trực tiếp file `.docx` văn bản pháp luật để hệ thống import.
+- Hệ thống không crawl theo số hiệu từ `wsvbpl.moj.gov.vn`/`vbpl.vn` trong MVP.
+- Hệ thống lưu file gốc, metadata do admin nhập hoặc metadata trích xuất được từ DOCX, dữ liệu chuẩn hóa, trạng thái pipeline và audit record.
+- Admin có thể nhập thủ công quan hệ văn bản như sửa đổi, thay thế, bãi bỏ nếu có nguồn kiểm chứng.
 - Admin phải review trước khi publish.
 
 Lý do: chất lượng dữ liệu pháp luật quyết định chất lượng retrieval và câu trả lời.
@@ -166,8 +170,7 @@ Lý do: chất lượng dữ liệu pháp luật quyết định chất lượng
 Pipeline import/update cần có trạng thái tối thiểu:
 
 - `pending`
-- `crawling`
-- `downloaded`
+- `uploaded`
 - `parsed`
 - `chunked`
 - `graph_indexed`
@@ -190,13 +193,13 @@ Lý do: dữ liệu pháp luật sai có thể làm sai toàn bộ câu trả l�
 
 ### P0 - Knowledge Graph Level 1: Document Graph
 
-Hệ thống dùng Neo4j để lưu graph cấp 1 giữa các văn bản pháp luật. Đây là lớp tương ứng với màn hình "Văn bản đang xem" và hai cột quan hệ văn bản trong giao diện tham chiếu.
+Hệ thống dùng Neo4j để lưu graph cấp 1 giữa các văn bản pháp luật khi admin cung cấp quan hệ đã kiểm chứng. Đây là lớp tương ứng với màn hình "Văn bản đang xem" và hai cột quan hệ văn bản trong giao diện tham chiếu. Vì MVP import từ file `.docx` upload trực tiếp, hệ thống không có quyền truy cập nguồn `wsvbpl.moj.gov.vn`/`vbpl.vn` để tự động lấy đầy đủ quan hệ giữa các văn bản.
 
 Node trung tâm là `Document`. Metadata tối thiểu của `Document` gồm:
 
 - `document_id`: định danh nội bộ ổn định.
-- `source_system`: nguồn dữ liệu, mặc định là `vbpl.vn`.
-- `source_url`: URL nguồn của văn bản.
+- `source_system`: nguồn dữ liệu, mặc định là `admin_upload`.
+- `source_url`: URL nguồn nếu admin nhập, có thể null.
 - `title`: tên đầy đủ của văn bản.
 - `document_number`: số hiệu văn bản.
 - `sector`: ngành.
@@ -209,11 +212,11 @@ Node trung tâm là `Document`. Metadata tối thiểu của `Document` gồm:
 - `effective_date`: ngày có hiệu lực.
 - `expiry_date`: ngày hết hiệu lực, có thể null.
 - `validity_status`: tình trạng hiệu lực, ví dụ còn hiệu lực, hết hiệu lực, bị thay thế, bị bãi bỏ.
-- `raw_metadata`: metadata gốc lấy từ nguồn crawl để phục vụ audit.
-- `crawl_batch_id`: batch import/update đã tạo ra bản ghi.
+- `raw_metadata`: metadata gốc do admin nhập hoặc trích xuất từ DOCX để phục vụ audit.
+- `import_batch_id`: batch import/update đã tạo ra bản ghi.
 - `published_version`: phiên bản dữ liệu đang publish.
 
-Quan hệ cấp văn bản cần bao phủ các nhóm trong giao diện tham chiếu:
+Nếu admin nhập dữ liệu quan hệ, quan hệ cấp văn bản cần bao phủ các nhóm trong giao diện tham chiếu:
 
 - Văn bản hướng dẫn áp dụng / văn bản được hướng dẫn áp dụng.
 - Văn bản quy định chi tiết, hướng dẫn thi hành / văn bản được quy định chi tiết, hướng dẫn thi hành.
@@ -229,9 +232,9 @@ Quan hệ cấp văn bản cần bao phủ các nhóm trong giao diện tham chi
 - Văn bản tạm ngưng hiệu lực / văn bản bị tạm ngưng hiệu lực.
 - Văn bản công bố / văn bản được công bố.
 
-Ở mức sản phẩm, các quan hệ phải hiển thị được theo hai chiều giống giao diện tham chiếu: văn bản hiện tại tác động tới văn bản nào, và văn bản hiện tại bị/được văn bản nào tác động. TRD sẽ quyết định lưu cạnh một chiều rồi suy ra chiều ngược, hay lưu thêm quan hệ inverse để tối ưu truy vấn.
+Ở mức sản phẩm, các quan hệ đã được nhập phải hiển thị được theo hai chiều giống giao diện tham chiếu: văn bản hiện tại tác động tới văn bản nào, và văn bản hiện tại bị/được văn bản nào tác động. Nếu chưa có dữ liệu quan hệ, UI phải hiển thị trạng thái chưa đủ dữ liệu thay vì để trống như thể không có quan hệ.
 
-Lý do: hiệu lực và quan hệ văn bản là nền tảng cho câu trả lời đáng tin.
+Lý do: hiệu lực và quan hệ văn bản là nền tảng cho câu trả lời đáng tin, nhưng với nguồn DOCX upload trực tiếp, hệ thống chỉ được phép dùng quan hệ do admin nhập hoặc xác nhận.
 
 ### P0 - Knowledge Graph Level 2: Legal Structure Graph
 
@@ -285,8 +288,8 @@ Metadata tối thiểu của mỗi vector record:
 - `document_number`: số hiệu văn bản.
 - `document_title`: tên văn bản.
 - `document_type`: loại văn bản.
-- `source_system`: nguồn dữ liệu, mặc định là `vbpl.vn`.
-- `source_url`: URL nguồn.
+- `source_system`: nguồn dữ liệu, mặc định là `admin_upload`.
+- `source_url`: URL nguồn nếu admin nhập, có thể null.
 - `sector`: ngành.
 - `domain`: lĩnh vực.
 - `issuing_body`: cơ quan ban hành.
@@ -305,7 +308,7 @@ Metadata tối thiểu của mỗi vector record:
 - `citation_label`: nhãn citation hiển thị, ví dụ `Nghị định số ... Điều 3 Khoản 2`.
 - `neo4j_node_id`: ID node `Article` hoặc `Clause` tương ứng trong Neo4j.
 - `published_version`: phiên bản dữ liệu đang publish.
-- `crawl_batch_id`: batch import/update đã tạo ra vector.
+- `import_batch_id`: batch import/update đã tạo ra vector.
 
 Metadata phải hỗ trợ lọc trước theo `validity_status = còn hiệu lực` trước khi retrieve. Nội dung embed là text của điều/khoản, nhưng citation và filtering không được phụ thuộc vào LLM sinh lại metadata.
 
@@ -321,8 +324,8 @@ Lý do: truy vấn keyword cần độ chính xác lexical cao.
 
 ### P0 - Hybrid Retrieval
 
-- Với câu hỏi nội dung thông thường, hệ thống kết hợp 4 nguồn: dense embedding, BM25, Neo4j graph cấp 1, Neo4j graph cấp 2.
-- Hệ thống lọc văn bản còn hiệu lực trước khi retrieve.
+- Với câu hỏi nội dung thông thường, hệ thống kết hợp dense embedding, BM25, Neo4j graph cấp 2 và Neo4j graph cấp 1 nếu đã có quan hệ được admin nhập.
+- Hệ thống lọc văn bản còn hiệu lực trước khi retrieve khi `validity_status` đã xác định; văn bản có trạng thái `unknown` phải được cảnh báo rõ.
 - Nếu thiếu citation hoặc confidence thấp, hệ thống phải cảnh báo không đủ căn cứ.
 
 Lý do: câu hỏi pháp lý cần kết hợp ngữ nghĩa, từ khóa, hiệu lực và cấu trúc pháp luật.
@@ -372,13 +375,13 @@ Mục đích:
 
 Dữ liệu đầu vào:
 
-- Ngày hết hiệu lực.
-- Dữ liệu quan hệ kiểu thay thế/bãi bỏ.
+- Ngày hết hiệu lực nếu có trong metadata.
+- Dữ liệu quan hệ kiểu thay thế/bãi bỏ nếu admin đã nhập.
 
 Dữ liệu đầu ra:
 
 - Trạng thái còn hiệu lực hoặc không còn hiệu lực.
-- Danh sách cảnh báo nếu thiếu dữ liệu, thiếu citation hoặc confidence thấp.
+- Danh sách cảnh báo nếu thiếu dữ liệu, thiếu quan hệ văn bản, thiếu citation hoặc confidence thấp.
 
 Lý do: rà soát hợp đồng là module giá trị cao nhưng MVP cần giữ scope rule-based/prototype.
 
@@ -396,7 +399,7 @@ Lý do: giữ đường kiến trúc cho module soạn tờ trình/hợp đồng
 - Admin có thể xem danh sách văn bản trong kho.
 - Admin có thể thêm, sửa, xóa mềm văn bản.
 - Admin có thể xem trạng thái hiệu lực và quan hệ văn bản.
-- Admin có thể kích hoạt cập nhật hiệu lực thủ công với cảnh báo tài nguyên.
+- Admin có thể cập nhật hiệu lực thủ công với cảnh báo rằng metadata/quan hệ cần được người có chuyên môn xác nhận.
 
 Lý do: hệ thống dữ liệu pháp luật cần vận hành và sửa lỗi được qua UI.
 
@@ -415,13 +418,14 @@ Các phần sau không nằm trong MVP 1 tuần:
 
 - Hỗ trợ nhiều lĩnh vực ngoài bảo hiểm.
 - Upload văn bản pháp luật bởi Business User.
-- Crawl nguồn khác ngoài `vbpl.vn`.
+- Import văn bản bằng crawl/tra cứu số hiệu từ `wsvbpl.moj.gov.vn`/`vbpl.vn`.
+- Tự động lấy quan hệ sửa đổi/thay thế/bãi bỏ từ nguồn nhà nước khi chưa có quyền truy cập hợp lệ.
 - Hỗ trợ văn bản pháp luật dạng PDF/HTML nếu không có `.docx`.
 - Bảo mật production-grade như reset password, SSO, MFA, rate limit nâng cao.
 - Version history đầy đủ theo thời gian cho từng điều/khoản.
 - Template `.docx` thật cho tờ trình/hợp đồng.
 - Deployment cloud hoặc server production.
-- Tự động cập nhật hiệu lực theo lịch nền; MVP dùng nút admin thủ công.
+- Tự động cập nhật hiệu lực theo lịch nền hoặc crawl lại nguồn bên ngoài; MVP dùng chỉnh sửa thủ công bởi admin.
 - Rà soát hợp đồng pháp lý toàn diện ngoài hai module thẩm quyền và hiệu lực.
 
 ## Designs
@@ -436,9 +440,9 @@ Các phần sau không nằm trong MVP 1 tuần:
 - Upload và rà soát hợp đồng
 - Tạo file `.docx` skeleton
 - Admin: quản lý văn bản
-- Admin: import theo số hiệu
+- Admin: upload/import DOCX
 - Admin: trạng thái pipeline
-- Admin: cập nhật hiệu lực
+- Admin: cập nhật metadata/hiệu lực thủ công
 - Admin: quản lý user
 
 ### Early Screen Sketches
@@ -464,18 +468,18 @@ Các phần sau không nằm trong MVP 1 tuần:
 +----------------------+-------------------------------------+
 ```
 
-#### Admin Import
+#### Admin DOCX Import
 
 ```text
 +------------------------------------------------------------+
 | Admin Console                              User: admin     |
 +------------------------------------------------------------+
-| So hieu van ban: [..............................] [Import] |
-| Source: vbpl.vn                                             |
-| Support: docx only                                          |
+| Upload van ban .docx: [Choose file] [Import]                |
+| Metadata: so hieu, ten van ban, hieu luc, source URL...      |
+| Relations: optional, admin-curated                           |
 +------------------------------------------------------------+
 | Pipeline                                                   |
-| pending -> crawling -> downloaded -> parsed -> indexed      |
+| pending -> uploaded -> parsed -> chunked -> indexed          |
 | ready_for_review -> published                              |
 +------------------------------------------------------------+
 | Review Metadata                                             |
@@ -504,7 +508,8 @@ Các phần sau không nằm trong MVP 1 tuần:
 
 ## Open Issues
 
-- Tiêu chuẩn tự động chọn kết quả trên `vbpl.vn` khi có nhiều bản cần được định nghĩa cụ thể trong TRD.
+- Bộ metadata tối thiểu admin bắt buộc nhập trước khi publish cần được chốt.
+- Cách hiển thị trạng thái thiếu quan hệ văn bản trong UI cần được thiết kế rõ để tránh hiểu nhầm là văn bản không có quan hệ.
 - Bộ nhãn quan hệ Neo4j cần chốt tên tiếng Anh/tiếng Việt nhất quán.
 - Công thức confidence score cần chốt: retrieval score, rerank score, citation presence, graph support, LLM self-check.
 - Format câu trả lời cuối cùng cần chốt sau.
@@ -517,7 +522,7 @@ Các phần sau không nằm trong MVP 1 tuần:
 ## Q&A
 
 **Q: MVP có bao gồm tất cả module không?**  
-A: Có. MVP gồm chatbot, admin quản lý kho dữ liệu, crawler theo số hiệu, graph, dense embedding, BM25, hybrid retrieval, rà soát hợp đồng cơ bản và khung sinh `.docx`.
+A: Có. MVP gồm chatbot, admin quản lý kho dữ liệu, import DOCX trực tiếp từ admin, graph cấp 2 theo cấu trúc văn bản, graph cấp 1 từ quan hệ admin nhập nếu có, dense embedding, BM25, hybrid retrieval, rà soát hợp đồng cơ bản và khung sinh `.docx`.
 
 **Q: Sản phẩm hỗ trợ lĩnh vực nào?**  
 A: Chỉ lĩnh vực bảo hiểm trong MVP.
@@ -525,20 +530,20 @@ A: Chỉ lĩnh vực bảo hiểm trong MVP.
 **Q: Người dùng thường có được thêm văn bản pháp luật không?**  
 A: Không. Người dùng chỉ hỏi trên kho do admin quản lý và chỉ upload hợp đồng để rà soát.
 
-**Q: Nguồn crawl chính là gì?**  
-A: `vbpl.vn`.
+**Q: MVP có crawl từ `wsvbpl.moj.gov.vn`/`vbpl.vn` không?**
+A: Không. Tính năng crawl/import theo số hiệu được tạm bỏ vì nguồn `https://wsvbpl.moj.gov.vn/` không cho phép dùng nếu không có quyền truy cập. MVP xử lý trực tiếp file `.docx` do admin upload.
 
-**Q: Nếu không có `.docx` thì sao?**  
-A: Hệ thống báo lỗi không hỗ trợ.
+**Q: Nếu admin chưa có thông tin quan hệ giữa các văn bản thì sao?**
+A: Hệ thống vẫn xử lý nội dung DOCX, tạo chunk, ChromaDB, BM25 và graph cấp 2 theo cấu trúc văn bản. Graph cấp 1 giữa các văn bản và các kết luận liên quan tới sửa đổi/thay thế/bãi bỏ sẽ bị thiếu hoặc được đánh dấu `không đủ dữ liệu`.
 
 **Q: Graph dùng công nghệ gì?**  
-A: Neo4j cho cả graph cấp 1 giữa văn bản và graph cấp 2 theo cấu trúc `Document -> Chapter -> Article -> Clause`.
+A: Neo4j cho graph cấp 2 theo cấu trúc `Document -> Chapter -> Article -> Clause`. Graph cấp 1 giữa văn bản chỉ có dữ liệu khi admin nhập hoặc xác nhận quan hệ.
 
 **Q: Có lưu version history theo thời gian không?**  
 A: MVP chỉ lưu trạng thái mới nhất.
 
 **Q: Retrieval xử lý keyword và câu hỏi tự nhiên khác nhau thế nào?**  
-A: Tìm từ khóa ưu tiên BM25. Câu hỏi tự nhiên dùng hybrid retrieval kết hợp dense embedding, BM25, graph cấp 1 và graph cấp 2.
+A: Tìm từ khóa ưu tiên BM25. Câu hỏi tự nhiên dùng hybrid retrieval kết hợp dense embedding, BM25, graph cấp 2 và graph cấp 1 nếu có quan hệ được nhập.
 
 **Q: Có lọc văn bản còn hiệu lực trước retrieval không?**  
 A: Có.
@@ -585,9 +590,9 @@ PRD này giả định TRD sẽ refactor prototype thành kiến trúc module:
 
 ### Risk Notes
 
-- MVP 1 tuần có rủi ro cao nếu phải hoàn thiện cả crawler, graph writer, BM25, UI, auth, rollback và contract review cùng lúc.
+- MVP 1 tuần vẫn có rủi ro nếu phải hoàn thiện graph writer, BM25, UI, auth, rollback và contract review cùng lúc.
 - Độ chính xác 80% cần được định nghĩa bằng test set có ground truth, nếu không sẽ dễ trở thành cảm tính.
-- Crawl `vbpl.vn` có thể không ổn định do thay đổi HTML, network, captcha hoặc thiếu file `.docx`.
+- Vì bỏ crawl từ `wsvbpl.moj.gov.vn`/`vbpl.vn`, MVP giảm rủi ro truy cập nguồn nhưng tăng rủi ro thiếu metadata quan hệ, hiệu lực, thay thế/bãi bỏ.
 - LLM chunking có thể sai cấu trúc văn bản, cần review và rollback.
 - Local prototype có thể chậm nếu embed nhiều văn bản bằng model lớn.
 
