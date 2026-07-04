@@ -1,0 +1,308 @@
+{
+  "app": {
+    "name": "BaoHiem Legal AI",
+    "subtitle": "AI Insurance Law Assistant",
+    "version": "v1.0"
+  },
+  "nav": {
+    "home": "Home",
+    "chat": "Chat",
+    "profile": "Profile",
+    "logout": "Logout",
+    "login": "Login"
+  },
+  "theme": {
+    "light": "Light",
+    "dark": "Dark",
+    "system": "System"
+  },
+  "lang": {
+    "vi": "Tiếng Việt",
+    "en": "English"
+  },
+  "login": {
+    "title": "Welcome Back",
+    "subtitle": "Sign in to AI Legal Workspace",
+    "username": "Username",
+    "password": "Password",
+    "submit": "Sign In",
+    "hint": "Try admin/admin or user/user",
+    "or": "OR",
+    "guest": "Continue as Guest",
+    "error": "Login failed",
+    "success": "Login successful"
+  },
+  "home": {
+    "greeting": "Hello,",
+    "hero_badge": "AI Legal Workspace",
+    "hero_title": "Insurance Law Consultation with",
+    "hero_ai": "AI",
+    "hero_desc": "Accurate answers based on current legal documents, with citations and validity status.",
+    "chat_placeholder": "Ask about insurance law...",
+    "send": "Send",
+    "login_banner": "Login for full feature access",
+    "advanced_title": "Advanced Features",
+    "advanced_subtitle": "For business users",
+    "suggestions": [
+      "What are the requirements for insurance business licensing?",
+      "What is the complaint deadline for life insurance contracts?",
+      "What are the obligations of insurance agents under current law?",
+      "How to resolve non-life insurance contract disputes?"
+    ]
+  },
+  "features": {
+    "draft_document": {
+      "title": "Draft Documents",
+      "desc": "Create official submissions, approval requests, contract appendices.",
+      "icon": "📝"
+    },
+    "draft_contract": {
+      "title": "Draft Contracts",
+      "desc": "Generate agency, service, and partnership insurance contracts.",
+      "icon": "📄"
+    },
+    "contract_review": {
+      "title": "Contract Review",
+      "desc": "Check authority, validity, and risks in contracts.",
+      "icon": "🔍"
+    },
+    "risk_alerts": {
+      "title": "Risk Alerts",
+      "desc": "Detect missing clauses, ambiguous terms, outdated references.",
+      "icon": "⚠️"
+    }
+  },
+  "chat": {
+    "new_chat": "New Conversation",
+    "history": "History",
+    "placeholder": "Ask about insurance law...",
+    "send": "Send",
+    "citations": "Citations",
+    "confidence": "Confidence",
+    "copy": "Copy",
+    "copied": "Copied",
+    "active": "Active",
+    "expired": "Expired",
+    "typing": "Typing...",
+    "empty": "Start a new conversation",
+    "empty_desc": "Ask any question about Vietnamese insurance law."
+  },
+  "profile": {
+    "title": "Profile",
+    "username": "Username",
+    "role": "Role",
+    "created": "Created",
+    "status": "Status",
+    "active": "Active",
+    "locked": "Locked",
+    "change_password": "Change Password",
+    "current_password": "Current Password",
+    "new_password": "New Password",
+    "confirm_password": "Confirm New Password",
+    "update": "Update",
+    "password_min": "Password must be at least 6 characters",
+    "password_mismatch": "Passwords do not match",
+    "password_updated": "Password updated successfully",
+    "password_error": "Failed to update password"
+  },
+  "roles": {
+    "admin": "Administrator",
+    "business_user": "Business User",
+    "guest": "Guest"
+  },
+  "admin": {
+    "sidebar": {
+      "title": "Admin Console",
+      "dashboard": "Dashboard",
+      "documents": "Documents",
+      "import": "Import DOCX",
+      "processed": "Processed Data",
+      "users": "User Management",
+      "profile": "Profile",
+      "chatbot": "Chatbot"
+    },
+    "dashboard": {
+      "title": "Dashboard",
+      "subtitle": "BaoHiem Legal AI",
+      "live": "Live",
+      "total_docs": "Total Documents",
+      "active_docs": "Active Documents",
+      "expiring_docs": "Expiring Soon (30d)",
+      "expired_docs": "Expired",
+      "total_users": "Users",
+      "expiring_table": "Expiring Documents",
+      "validity_chart": "Validity Distribution",
+      "doc_number": "Number",
+      "doc_title": "Title",
+      "expiry_date": "Expiry Date",
+      "doc_status": "Status"
+    },
+    "documents": {
+      "title": "Document Management",
+      "search": "Search documents...",
+      "doc_name": "Document Name",
+      "doc_number": "Number",
+      "chunks": "Chunks",
+      "review": "Review",
+      "actions": "Actions",
+      "download": "Download",
+      "edit": "Edit",
+      "delete": "Delete",
+      "publish": "Publish",
+      "needs_review": "Needs Review",
+      "ok": "OK",
+      "no_docs": "No documents found.",
+      "metadata": "Metadata",
+      "chunks_tab": "Chunks",
+      "relations": "Relations",
+      "save": "Save",
+      "close": "Close",
+      "confirm_delete": "Delete permanently",
+      "deleted": "Document deleted.",
+      "saved": "Saved successfully."
+    },
+    "import": {
+      "title": "Import DOCX",
+      "subtitle": "Upload legal documents in DOCX format for processing",
+      "file": "DOCX File",
+      "choose_file": "Choose file...",
+      "legal_doc": "Legal document",
+      "import_btn": "Import Document",
+      "importing": "Importing...",
+      "success": "DOCX imported and queued for review.",
+      "fields": {
+        "title": "Title",
+        "document_number": "Document Number",
+        "document_type": "Document Type",
+        "issued_date": "Issued Date",
+        "effective_date": "Effective Date",
+        "expiry_date": "Expiry Date",
+        "validity_status": "Validity Status",
+        "issuing_body": "Issuing Body",
+        "signer_title": "Signer Title",
+        "signer_name": "Signer Name"
+      }
+    },
+    "processed": {
+      "title": "Processed Data",
+      "subtitle": "Manage processed document data",
+      "index": "#",
+      "filename": "File Name",
+      "chunk_count": "Chunks",
+      "article_count": "Articles",
+      "actions": "Actions",
+      "edit": "Edit",
+      "delete": "Delete",
+      "search": "Search...",
+      "confirm_delete": "Are you sure you want to delete?",
+      "no_data": "No processed data found."
+    },
+    "users": {
+      "title": "User Management",
+      "add_user": "Add User",
+      "username": "Username",
+      "role": "Role",
+      "created": "Created",
+      "status": "Status",
+      "actions": "Actions",
+      "edit": "Edit",
+      "lock": "Lock",
+      "unlock": "Unlock",
+      "active": "Active",
+      "locked": "Locked",
+      "password": "Password",
+      "save": "Save",
+      "cancel": "Cancel",
+      "user_added": "User added.",
+      "user_updated": "User updated.",
+      "no_users": "No users found."
+    }
+  },
+  "validity": {
+    "active": "Active",
+    "partially_expired": "Partially Expired",
+    "expired": "Expired",
+    "not_yet_effective": "Not Yet Effective",
+    "suspended": "Suspended",
+    "revoked": "Revoked",
+    "unknown": "Unknown"
+  },
+  "draft": {
+    "document": {
+      "title": "Draft Documents",
+      "subtitle": "Create submissions, approval requests, contract appendices",
+      "type": "Document Type",
+      "types": {
+        "submission": "Submission",
+        "approval": "Approval Request",
+        "appendix": "Contract Appendix"
+      },
+      "subject": "Subject",
+      "details": "Details",
+      "generate": "Generate Draft",
+      "preview": "Preview",
+      "download": "Download .docx",
+      "disclaimer": "⚠️ This is a reference draft. Please review legally before official use."
+    },
+    "contract": {
+      "title": "Draft Contracts",
+      "subtitle": "Generate agency, service, and partnership insurance contracts",
+      "type": "Contract Type",
+      "types": {
+        "agency": "Insurance Agency Contract",
+        "service": "Service Contract",
+        "partnership": "Partnership Contract"
+      },
+      "party_a": "Party A",
+      "party_b": "Party B",
+      "terms": "Key Terms",
+      "generate": "Generate Contract",
+      "preview": "Preview",
+      "download": "Download .docx",
+      "disclaimer": "⚠️ This is a reference draft. Please review legally before official use."
+    }
+  },
+  "review": {
+    "title": "Contract Review",
+    "subtitle": "Upload contracts to check authority, validity, and risks",
+    "upload": "Upload .docx file",
+    "analyze": "Analyze Contract",
+    "analyzing": "Analyzing...",
+    "authority": "Authority",
+    "validity": "Validity",
+    "risk_summary": "Risk Summary",
+    "issuing_body": "Issuing Body",
+    "signer": "Signer Authority",
+    "status": "Status",
+    "passed": "Passed",
+    "failed": "Failed",
+    "warning": "Warning"
+  },
+  "risk": {
+    "title": "Risk Alerts",
+    "subtitle": "Analyze legal risks in contracts",
+    "upload": "Upload contract",
+    "analyze": "Analyze Risks",
+    "severity": "Severity",
+    "description": "Description",
+    "suggestion": "Remediation",
+    "high": "High",
+    "medium": "Medium",
+    "low": "Low",
+    "no_risks": "No risks detected."
+  },
+  "common": {
+    "loading": "Loading...",
+    "error": "An error occurred",
+    "retry": "Retry",
+    "cancel": "Cancel",
+    "confirm": "Confirm",
+    "save": "Save",
+    "close": "Close",
+    "back": "Back",
+    "next": "Next",
+    "search": "Search...",
+    "no_data": "No data",
+    "coming_soon": "Coming soon"
+  }
+}

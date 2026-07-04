@@ -1,0 +1,308 @@
+{
+  "app": {
+    "name": "BaoHiem Legal AI",
+    "subtitle": "Trợ lý AI pháp luật bảo hiểm",
+    "version": "v1.0"
+  },
+  "nav": {
+    "home": "Trang chủ",
+    "chat": "Trò chuyện",
+    "profile": "Hồ sơ",
+    "logout": "Đăng xuất",
+    "login": "Đăng nhập"
+  },
+  "theme": {
+    "light": "Sáng",
+    "dark": "Tối",
+    "system": "Hệ thống"
+  },
+  "lang": {
+    "vi": "Tiếng Việt",
+    "en": "English"
+  },
+  "login": {
+    "title": "Chào mừng trở lại",
+    "subtitle": "Đăng nhập vào không gian làm việc pháp lý AI",
+    "username": "Tên đăng nhập",
+    "password": "Mật khẩu",
+    "submit": "Đăng nhập",
+    "hint": "Thử admin/admin hoặc user/user",
+    "or": "HOẶC",
+    "guest": "Tiếp tục với tư cách khách",
+    "error": "Đăng nhập thất bại",
+    "success": "Đăng nhập thành công"
+  },
+  "home": {
+    "greeting": "Xin chào,",
+    "hero_badge": "AI Legal Workspace",
+    "hero_title": "Tư vấn pháp luật bảo hiểm bằng",
+    "hero_ai": "AI",
+    "hero_desc": "Trả lời chính xác dựa trên văn bản pháp luật hiện hành, kèm trích dẫn và trạng thái hiệu lực.",
+    "chat_placeholder": "Hỏi về luật bảo hiểm...",
+    "send": "Gửi",
+    "login_banner": "Đăng nhập để truy cập đầy đủ tính năng",
+    "advanced_title": "Tính năng nâng cao",
+    "advanced_subtitle": "Dành cho doanh nghiệp",
+    "suggestions": [
+      "Điều kiện được cấp phép kinh doanh bảo hiểm?",
+      "Thời hạn khiếu nại hợp đồng bảo hiểm nhân thọ?",
+      "Nghĩa vụ của đại lý bảo hiểm theo luật hiện hành?",
+      "Xử lý tranh chấp hợp đồng bảo hiểm phi nhân thọ?"
+    ]
+  },
+  "features": {
+    "draft_document": {
+      "title": "Soạn thảo văn bản",
+      "desc": "Tạo tờ trình, đề nghị phê duyệt, phụ lục hợp đồng chuyên nghiệp.",
+      "icon": "📝"
+    },
+    "draft_contract": {
+      "title": "Soạn thảo hợp đồng",
+      "desc": "Sinh hợp đồng đại lý, dịch vụ, hợp tác bảo hiểm.",
+      "icon": "📄"
+    },
+    "contract_review": {
+      "title": "Rà soát hợp đồng",
+      "desc": "Kiểm tra thẩm quyền, hiệu lực và rủi ro trong hợp đồng.",
+      "icon": "🔍"
+    },
+    "risk_alerts": {
+      "title": "Cảnh báo rủi ro",
+      "desc": "Phát hiện điều khoản thiếu, mơ hồ, viện dẫn hết hiệu lực.",
+      "icon": "⚠️"
+    }
+  },
+  "chat": {
+    "new_chat": "Cuộc trò chuyện mới",
+    "history": "Lịch sử",
+    "placeholder": "Hỏi về luật bảo hiểm...",
+    "send": "Gửi",
+    "citations": "Trích dẫn",
+    "confidence": "Độ tin cậy",
+    "copy": "Sao chép",
+    "copied": "Đã sao chép",
+    "active": "Đang hiệu lực",
+    "expired": "Hết hiệu lực",
+    "typing": "Đang trả lời...",
+    "empty": "Bắt đầu cuộc trò chuyện mới",
+    "empty_desc": "Hỏi bất kỳ câu hỏi nào về pháp luật bảo hiểm Việt Nam."
+  },
+  "profile": {
+    "title": "Hồ sơ cá nhân",
+    "username": "Tên đăng nhập",
+    "role": "Vai trò",
+    "created": "Ngày tạo",
+    "status": "Trạng thái",
+    "active": "Hoạt động",
+    "locked": "Đã khóa",
+    "change_password": "Đổi mật khẩu",
+    "current_password": "Mật khẩu hiện tại",
+    "new_password": "Mật khẩu mới",
+    "confirm_password": "Xác nhận mật khẩu mới",
+    "update": "Cập nhật",
+    "password_min": "Mật khẩu tối thiểu 6 ký tự",
+    "password_mismatch": "Mật khẩu không khớp",
+    "password_updated": "Đổi mật khẩu thành công",
+    "password_error": "Đổi mật khẩu thất bại"
+  },
+  "roles": {
+    "admin": "Quản trị viên",
+    "business_user": "Doanh nghiệp",
+    "guest": "Khách"
+  },
+  "admin": {
+    "sidebar": {
+      "title": "Admin Console",
+      "dashboard": "Bảng điều khiển",
+      "documents": "Văn bản",
+      "import": "Nhập DOCX",
+      "processed": "Dữ liệu đã xử lý",
+      "users": "Quản lý người dùng",
+      "profile": "Hồ sơ",
+      "chatbot": "Chatbot"
+    },
+    "dashboard": {
+      "title": "Bảng điều khiển",
+      "subtitle": "BaoHiem Legal AI",
+      "live": "Live",
+      "total_docs": "Tổng số văn bản",
+      "active_docs": "Đang hiệu lực",
+      "expiring_docs": "Sắp hết (30 ngày)",
+      "expired_docs": "Đã hết hiệu lực",
+      "total_users": "Người dùng",
+      "expiring_table": "Văn bản sắp hết hiệu lực",
+      "validity_chart": "Phân bố hiệu lực",
+      "doc_number": "Số hiệu",
+      "doc_title": "Tiêu đề",
+      "expiry_date": "Ngày hết hiệu lực",
+      "doc_status": "Trạng thái"
+    },
+    "documents": {
+      "title": "Quản lý văn bản",
+      "search": "Tìm kiếm văn bản...",
+      "doc_name": "Tên văn bản",
+      "doc_number": "Số hiệu",
+      "chunks": "Số chunk",
+      "review": "Review",
+      "actions": "Thao tác",
+      "download": "Tải xuống",
+      "edit": "Sửa",
+      "delete": "Xóa",
+      "publish": "Xuất bản",
+      "needs_review": "Cần review",
+      "ok": "OK",
+      "no_docs": "Chưa có văn bản.",
+      "metadata": "Metadata",
+      "chunks_tab": "Chunks",
+      "relations": "Quan hệ",
+      "save": "Lưu",
+      "close": "Đóng",
+      "confirm_delete": "Xóa vĩnh viễn",
+      "deleted": "Đã xóa văn bản.",
+      "saved": "Đã lưu thành công."
+    },
+    "import": {
+      "title": "Nhập DOCX",
+      "subtitle": "Tải lên văn bản pháp luật định dạng DOCX để xử lý",
+      "file": "File DOCX",
+      "choose_file": "Chọn file...",
+      "legal_doc": "Văn bản pháp luật",
+      "import_btn": "Nhập văn bản",
+      "importing": "Đang nhập...",
+      "success": "Đã import DOCX và đưa vào hàng review.",
+      "fields": {
+        "title": "Tiêu đề",
+        "document_number": "Số hiệu",
+        "document_type": "Loại văn bản",
+        "issued_date": "Ngày ban hành",
+        "effective_date": "Ngày hiệu lực",
+        "expiry_date": "Ngày hết hiệu lực",
+        "validity_status": "Trạng thái hiệu lực",
+        "issuing_body": "Cơ quan ban hành",
+        "signer_title": "Chức danh người ký",
+        "signer_name": "Người ký"
+      }
+    },
+    "processed": {
+      "title": "Dữ liệu đã xử lý",
+      "subtitle": "Quản lý dữ liệu văn bản đã được xử lý",
+      "index": "#",
+      "filename": "Tên file",
+      "chunk_count": "Số chunk",
+      "article_count": "Số điều",
+      "actions": "Thao tác",
+      "edit": "Sửa",
+      "delete": "Xóa",
+      "search": "Tìm kiếm...",
+      "confirm_delete": "Bạn có chắc chắn muốn xóa?",
+      "no_data": "Chưa có dữ liệu đã xử lý."
+    },
+    "users": {
+      "title": "Quản lý người dùng",
+      "add_user": "Thêm người dùng",
+      "username": "Tên đăng nhập",
+      "role": "Vai trò",
+      "created": "Ngày tạo",
+      "status": "Trạng thái",
+      "actions": "Thao tác",
+      "edit": "Sửa",
+      "lock": "Khóa",
+      "unlock": "Mở khóa",
+      "active": "Active",
+      "locked": "Locked",
+      "password": "Mật khẩu",
+      "save": "Lưu",
+      "cancel": "Hủy",
+      "user_added": "Đã thêm người dùng.",
+      "user_updated": "Đã cập nhật người dùng.",
+      "no_users": "Chưa có người dùng."
+    }
+  },
+  "validity": {
+    "active": "Đang hiệu lực",
+    "partially_expired": "Hết hiệu lực một phần",
+    "expired": "Hết hiệu lực",
+    "not_yet_effective": "Chưa có hiệu lực",
+    "suspended": "Tạm dừng",
+    "revoked": "Đã thu hồi",
+    "unknown": "Không xác định"
+  },
+  "draft": {
+    "document": {
+      "title": "Soạn thảo văn bản",
+      "subtitle": "Tạo tờ trình, đề nghị phê duyệt, phụ lục hợp đồng",
+      "type": "Loại văn bản",
+      "types": {
+        "submission": "Tờ trình",
+        "approval": "Đề nghị phê duyệt",
+        "appendix": "Phụ lục hợp đồng"
+      },
+      "subject": "Chủ đề",
+      "details": "Nội dung chi tiết",
+      "generate": "Tạo bản nháp",
+      "preview": "Xem trước",
+      "download": "Tải xuống .docx",
+      "disclaimer": "⚠️ Đây là bản nháp tham khảo. Vui lòng rà soát pháp lý trước khi sử dụng chính thức."
+    },
+    "contract": {
+      "title": "Soạn thảo hợp đồng",
+      "subtitle": "Sinh hợp đồng đại lý, dịch vụ, hợp tác bảo hiểm",
+      "type": "Loại hợp đồng",
+      "types": {
+        "agency": "Hợp đồng đại lý bảo hiểm",
+        "service": "Hợp đồng dịch vụ",
+        "partnership": "Hợp đồng hợp tác"
+      },
+      "party_a": "Bên A",
+      "party_b": "Bên B",
+      "terms": "Điều khoản chính",
+      "generate": "Tạo hợp đồng",
+      "preview": "Xem trước",
+      "download": "Tải xuống .docx",
+      "disclaimer": "⚠️ Đây là bản nháp tham khảo. Vui lòng rà soát pháp lý trước khi sử dụng chính thức."
+    }
+  },
+  "review": {
+    "title": "Rà soát hợp đồng",
+    "subtitle": "Tải lên hợp đồng để kiểm tra thẩm quyền, hiệu lực và rủi ro",
+    "upload": "Tải lên file .docx",
+    "analyze": "Phân tích hợp đồng",
+    "analyzing": "Đang phân tích...",
+    "authority": "Thẩm quyền",
+    "validity": "Hiệu lực",
+    "risk_summary": "Tóm tắt rủi ro",
+    "issuing_body": "Cơ quan ban hành",
+    "signer": "Thẩm quyền ký",
+    "status": "Trạng thái",
+    "passed": "Đạt",
+    "failed": "Không đạt",
+    "warning": "Cảnh báo"
+  },
+  "risk": {
+    "title": "Cảnh báo rủi ro",
+    "subtitle": "Phân tích rủi ro pháp lý trong hợp đồng",
+    "upload": "Tải lên hợp đồng",
+    "analyze": "Phân tích rủi ro",
+    "severity": "Mức độ",
+    "description": "Mô tả",
+    "suggestion": "Gợi ý khắc phục",
+    "high": "Cao",
+    "medium": "Trung bình",
+    "low": "Thấp",
+    "no_risks": "Không phát hiện rủi ro."
+  },
+  "common": {
+    "loading": "Đang tải...",
+    "error": "Đã xảy ra lỗi",
+    "retry": "Thử lại",
+    "cancel": "Hủy",
+    "confirm": "Xác nhận",
+    "save": "Lưu",
+    "close": "Đóng",
+    "back": "Quay lại",
+    "next": "Tiếp theo",
+    "search": "Tìm kiếm...",
+    "no_data": "Không có dữ liệu",
+    "coming_soon": "Sắp ra mắt"
+  }
+}

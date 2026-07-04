@@ -1,0 +1,114 @@
+/* Shared styles for business feature pages */
+
+.feature-page {
+  max-width: 900px;
+}
+
+.feature-content {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.feature-form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.feature-preview h3 {
+  margin-bottom: 12px;
+}
+
+.preview-content {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  padding: 16px;
+  font-family: "Roboto", sans-serif;
+  font-size: 14px;
+  line-height: 1.7;
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 400px;
+  overflow-y: auto;
+  color: var(--text-primary);
+}
+
+.disclaimer-banner {
+  margin-top: 12px;
+  padding: 10px 14px;
+  background: var(--warning-bg);
+  border: 1px solid var(--warning);
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  color: var(--warning);
+  font-weight: 500;
+}
+
+/* Review */
+.review-checklist {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.check-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border-light);
+  font-size: 14px;
+}
+
+.check-row:last-child {
+  border-bottom: none;
+}
+
+.review-warning {
+  margin-top: 8px;
+  font-size: 13px;
+  color: var(--warning);
+}
+
+/* Risk */
+.risk-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.risk-item {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.risk-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.risk-description {
+  font-size: 14px;
+  color: var(--text-primary);
+  line-height: 1.5;
+}
+
+.risk-suggestion {
+  font-size: 13px;
+  color: var(--text-secondary);
+  padding: 8px 12px;
+  background: var(--bg-secondary);
+  border-radius: var(--radius-sm);
+  display: flex;
+  gap: 6px;
+}
+
+.risk-suggestion-label {
+  font-weight: 600;
+  white-space: nowrap;
+}
