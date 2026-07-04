@@ -4,5 +4,10 @@ todo.md
 .agents
 .codex
 __pycache__
+node_modules/
+frontend/dist/
+.uv-cache/
+.crawl4ai/
+.playwright-browsers/
 document_filtered.json
 document_segment.json

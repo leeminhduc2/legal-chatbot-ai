@@ -488,7 +488,24 @@ class Neo4jGraphWriter:
                 )
 
     def delete_by_batch(self, import_batch_id: str) -> None:
-        self.unpublish_by_batch(import_batch_id)
+        driver = self._get_driver()
+        with driver.session(**self._session_kwargs()) as session:
+            session.run(
+                """
+                MATCH ()-[r]->()
+                WHERE r.import_batch_id = $import_batch_id
+                DELETE r
+                """,
+                import_batch_id=import_batch_id,
+            )
+            session.run(
+                """
+                MATCH (n)
+                WHERE n.import_batch_id = $import_batch_id
+                DETACH DELETE n
+                """,
+                import_batch_id=import_batch_id,
+            )
 
     def unpublish_by_batch(self, import_batch_id: str) -> None:
         driver = self._get_driver()
@@ -787,6 +804,90 @@ class DocumentIndexingService:
                 "Rollback failed.",
                 details=exception_details(exc),
             ) from exc
+
+    def delete_document(
+        self,
+        document_id: str,
+        requested_by_user_id: str,
+    ) -> dict[str, Any]:
+        del requested_by_user_id
+        registry = self._get_registry(document_id)
+        if registry is None:
+            raise IndexingError("DOCUMENT_NOT_FOUND", "Document not found.", 404)
+
+        versions = self._get_versions_for_document(document_id)
+        cleanup_batches = sorted(
+            {
+                str(version["import_batch_id"])
+                for version in versions
+                if version.get("import_batch_id")
+                and (
+                    version.get("status") in {STATUS_PUBLISHED, STATUS_SUPERSEDED}
+                    or registry.get("is_published")
+                )
+            }
+        )
+        providers = self.providers or (
+            build_default_indexing_providers(self.config) if cleanup_batches else []
+        )
+        cleanup_errors: list[dict[str, str]] = []
+        for import_batch_id in cleanup_batches:
+            cleanup_errors.extend(cleanup_indexed_batch(providers, import_batch_id))
+        if cleanup_errors:
+            raise IndexingError(
+                "DELETE_INDEX_CLEANUP_FAILED",
+                "Document index cleanup failed.",
+                details={"cleanup_errors": cleanup_errors},
+            )
+
+        paths = collect_version_artifact_paths(versions)
+        with get_connection(self.db_path) as connection:
+            connection.execute(
+                """
+                DELETE FROM document_relations
+                WHERE source_document_id = ? OR target_document_id = ?
+                """,
+                (document_id, document_id),
+            )
+            connection.execute(
+                "DELETE FROM document_versions WHERE document_id = ?",
+                (document_id,),
+            )
+            connection.execute(
+                "DELETE FROM document_registry WHERE document_id = ?",
+                (document_id,),
+            )
+            connection.commit()
+
+        deleted_paths = delete_artifacts_safely(paths)
+        return {
+            "document_id": document_id,
+            "status": "deleted",
+            "cleanup_batches": cleanup_batches,
+            "deleted_artifacts": deleted_paths,
+        }
+
+    def _get_registry(self, document_id: str) -> dict[str, Any] | None:
+        with get_connection(self.db_path) as connection:
+            return row_to_dict(
+                connection.execute(
+                    "SELECT * FROM document_registry WHERE document_id = ? AND is_deleted = 0",
+                    (document_id,),
+                ).fetchone()
+            )
+
+    def _get_versions_for_document(self, document_id: str) -> list[dict[str, Any]]:
+        with get_connection(self.db_path) as connection:
+            rows = connection.execute(
+                """
+                SELECT *
+                FROM document_versions
+                WHERE document_id = ?
+                ORDER BY version ASC
+                """,
+                (document_id,),
+            ).fetchall()
+        return [dict(row) for row in rows]
 
     def _get_latest_version(self, document_id: str) -> dict[str, Any] | None:
         with get_connection(self.db_path) as connection:
@@ -1221,6 +1322,63 @@ def cleanup_indexed_batch(
                 }
             )
     return errors
+
+
+def collect_version_artifact_paths(versions: list[dict[str, Any]]) -> list[Path]:
+    paths: list[Path] = []
+    for version in versions:
+        for key in ("raw_docx_path", "preprocessed_text_path", "chunk_json_path"):
+            value = optional_str(version.get(key))
+            if value:
+                paths.append(Path(value))
+    return paths
+
+
+def delete_artifacts_safely(paths: list[Path]) -> list[str]:
+    allowed_roots = [
+        (Path.cwd() / "data" / "raw").resolve(),
+        (Path.cwd() / "data" / "preprocessed").resolve(),
+        (Path.cwd() / "data" / "chunked").resolve(),
+    ]
+    deleted: list[str] = []
+    for path in paths:
+        resolved = path.resolve()
+        if not is_relative_to_any(resolved, allowed_roots):
+            raise IndexingError(
+                "DELETE_PATH_UNSAFE",
+                "Refusing to delete a file outside managed storage.",
+                details={"path": str(path)},
+            )
+        if resolved.exists() and resolved.is_file():
+            resolved.unlink()
+            deleted.append(str(resolved))
+        cleanup_empty_storage_dir(resolved.parent, allowed_roots)
+    return deleted
+
+
+def cleanup_empty_storage_dir(path: Path, allowed_roots: list[Path]) -> None:
+    resolved = path.resolve()
+    if not is_relative_to_any(resolved, allowed_roots):
+        return
+    for root in allowed_roots:
+        if resolved == root:
+            return
+    try:
+        resolved.rmdir()
+    except OSError:
+        return
+
+
+def is_relative_to_any(path: Path, roots: list[Path]) -> bool:
+    return any(is_relative_to(path, root) for root in roots)
+
+
+def is_relative_to(path: Path, root: Path) -> bool:
+    try:
+        path.relative_to(root)
+    except ValueError:
+        return False
+    return True
 
 
 def exception_details(exc: Exception) -> dict[str, Any]:

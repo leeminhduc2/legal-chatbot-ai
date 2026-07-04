@@ -35,7 +35,9 @@ class Config:
     llm_provider: str = "deepseek"
     llm_model_chat: str = ""
     llm_model_chunking: str = ""
+    llm_model_metadata: str = "deepseek-v4-flash"
     llm_chunking_enabled: bool = False
+    vbpl_crawl_enabled: bool = True
     embedding_model: str = "BAAI/bge-m3"
 
     @classmethod
@@ -81,9 +83,17 @@ class Config:
             llm_provider=os.getenv("LLM_PROVIDER", cls.llm_provider),
             llm_model_chat=os.getenv("LLM_MODEL_CHAT", cls.llm_model_chat),
             llm_model_chunking=os.getenv("LLM_MODEL_CHUNKING", cls.llm_model_chunking),
+            llm_model_metadata=os.getenv(
+                "LLM_MODEL_METADATA",
+                os.getenv("DEEPSEEK_MODEL_METADATA", cls.llm_model_metadata),
+            ),
             llm_chunking_enabled=_bool_from_env(
                 "LLM_CHUNKING_ENABLED",
                 cls.llm_chunking_enabled,
+            ),
+            vbpl_crawl_enabled=_bool_from_env(
+                "VBPL_CRAWL_ENABLED",
+                cls.vbpl_crawl_enabled,
             ),
             embedding_model=os.getenv("EMBEDDING_MODEL", cls.embedding_model),
         )

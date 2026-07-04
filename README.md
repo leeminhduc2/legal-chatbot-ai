@@ -14,20 +14,48 @@ python -m venv .venv
 
 ```bash
 pip install uv ## pip written in rust
-uv pip install chromadb FlagEmbedding elasticsearch python-docx openai neo4j python-dotenv flask werkzeug streamlit requests
+uv pip install chromadb FlagEmbedding elasticsearch python-docx openai neo4j python-dotenv flask werkzeug requests crawl4ai
 ```
 
 3. Start the Flask API
 
 ```bash
-python backend/app.py
+.\.venv\Scripts\python.exe backend/app.py
 ```
 
-4. Start the Streamlit admin UI
+4. Start the React admin UI
 
 ```bash
-streamlit run frontend/streamlit_app.py
+cd frontend
+npm install
+npm run dev
 ```
+
+The Vite dev server proxies `/api` to `http://127.0.0.1:5000`.
+
+5. Run backend tests
+
+```bash
+.\.venv\Scripts\python.exe -m pytest
+```
+
+## DOCX import metadata
+
+Admin DOCX upload can be submitted with only a file. The backend stores the
+original DOCX under `data/raw/<import_batch_id>/`, parses text for deterministic
+hints, then calls DeepSeek with an OpenAI-compatible client when
+`DEEPSEEK_API_KEY` is available:
+
+```env
+DEEPSEEK_API_KEY=replace-with-your-deepseek-key
+DEEPSEEK_MODEL_METADATA=deepseek-v4-flash
+VBPL_CRAWL_ENABLED=true
+CRAWL4_AI_BASE_DIRECTORY=.crawl4ai
+PLAYWRIGHT_BROWSERS_PATH=.playwright-browsers
+```
+
+When the upload checkbox `Van ban phap luat` is enabled, VBPL enrichment is
+best-effort. Missing fields are imported anyway and marked for admin review.
 
 ## Local Elasticsearch config
 
