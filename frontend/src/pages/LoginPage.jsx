@@ -3,29 +3,35 @@ import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../contexts/AuthContext';
 import toast from 'react-hot-toast';
+import logo from '../assets/logo.png';
 import './LoginPage.css';
 
-export default function LoginPage() {
+export default function LoginPage({ initialMode = 'login' }) {
   const { t } = useTranslation();
-  const { login, loginAsGuest } = useAuth();
+  const { login, register, loginAsGuest } = useAuth();
   const navigate = useNavigate();
-  const [form, setForm] = useState({ username: '', password: '' });
+  const [mode, setMode] = useState(initialMode);
+  const [form, setForm] = useState({ username: '', password: '', confirmPassword: '' });
   const [busy, setBusy] = useState(false);
+  const isRegister = mode === 'register';
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!form.username || !form.password) return;
+    if (isRegister && form.password !== form.confirmPassword) {
+      toast.error(t('login.password_mismatch'));
+      return;
+    }
+
     setBusy(true);
     try {
-      const user = await login(form.username, form.password);
-      toast.success(t('login.success'));
-      if (user.role === 'admin') {
-        navigate('/admin');
-      } else {
-        navigate('/');
-      }
+      const user = isRegister
+        ? await register(form.username, form.password)
+        : await login(form.username, form.password);
+      toast.success(isRegister ? t('login.register_success') : t('login.success'));
+      navigate(user.role === 'admin' ? '/admin' : isRegister ? '/chat' : '/');
     } catch (err) {
-      toast.error(err.message || t('login.error'));
+      toast.error(err.message || (isRegister ? t('login.register_error') : t('login.error')));
     } finally {
       setBusy(false);
     }
@@ -34,6 +40,11 @@ export default function LoginPage() {
   const handleGuest = () => {
     loginAsGuest();
     navigate('/');
+  };
+
+  const toggleMode = () => {
+    setMode(isRegister ? 'login' : 'register');
+    setForm({ username: '', password: '', confirmPassword: '' });
   };
 
   return (
@@ -46,11 +57,15 @@ export default function LoginPage() {
 
       <form className="login-card card-glass animate-slideUp" onSubmit={handleSubmit}>
         <div className="login-logo">
-          <div className="login-logo-icon">⚖️</div>
+          <img className="login-logo-image" src={logo} alt={t('app.name')} />
         </div>
 
-        <h1 className="login-title">{t('login.title')}</h1>
-        <p className="login-subtitle">{t('login.subtitle')}</p>
+        <h1 className="login-title">
+          {t(isRegister ? 'login.register_title' : 'login.title')}
+        </h1>
+        <p className="login-subtitle">
+          {t(isRegister ? 'login.register_subtitle' : 'login.subtitle')}
+        </p>
 
         <div className="form-group">
           <label htmlFor="login-username">{t('login.username')}</label>
@@ -71,16 +86,33 @@ export default function LoginPage() {
             type="password"
             value={form.password}
             onChange={(e) => setForm({ ...form, password: e.target.value })}
-            autoComplete="current-password"
+            autoComplete={isRegister ? 'new-password' : 'current-password'}
           />
         </div>
 
+        {isRegister && (
+          <div className="form-group">
+            <label htmlFor="login-confirm-password">{t('login.confirm_password')}</label>
+            <input
+              id="login-confirm-password"
+              type="password"
+              value={form.confirmPassword}
+              onChange={(e) => setForm({ ...form, confirmPassword: e.target.value })}
+              autoComplete="new-password"
+            />
+          </div>
+        )}
+
         <button type="submit" className="btn btn-primary btn-lg w-full" disabled={busy}>
           {busy ? <span className="spinner" /> : null}
-          {t('login.submit')} →
+          {t(isRegister ? 'login.register_submit' : 'login.submit')} -&gt;
         </button>
 
         <p className="login-hint">{t('login.hint')}</p>
+
+        <button type="button" className="login-switch" onClick={toggleMode}>
+          {t(isRegister ? 'login.switch_to_login' : 'login.switch_to_register')}
+        </button>
 
         <div className="login-divider">
           <span>{t('login.or')}</span>

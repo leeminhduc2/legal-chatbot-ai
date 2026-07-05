@@ -4,49 +4,49 @@ import { api } from '../../services/api';
 import toast from 'react-hot-toast';
 import './AdminPage.css';
 
-const VALIDITY_OPTIONS = [
-  'active', 'partially_expired', 'expired', 'not_yet_effective',
-  'suspended', 'revoked', 'unknown',
-];
-
 export default function ImportDocxPage() {
   const { t } = useTranslation();
-  const [file, setFile] = useState(null);
-  const [isLegal, setIsLegal] = useState(true);
-  const [metadata, setMetadata] = useState({});
+  const [files, setFiles] = useState([]);
   const [busy, setBusy] = useState(false);
-  const [result, setResult] = useState(null);
+  const [results, setResults] = useState([]);
 
   const handleImport = async (e) => {
     e.preventDefault();
-    if (!file) return;
-    setBusy(true);
-    setResult(null);
-    try {
-      const form = new FormData();
-      form.append('file', file);
-      form.append('is_legal_document', isLegal ? 'true' : 'false');
-      Object.entries(metadata).forEach(([k, v]) => {
-        if (v) form.append(k, v);
-      });
-      const res = await api('/admin/documents/import', { method: 'POST', body: form });
-      const data = await res.json();
-      setResult(data);
-      toast.success(t('admin.import.success'));
-      setFile(null);
-      setMetadata({});
-      e.target.reset();
-    } catch (err) {
-      toast.error(err.message);
-    } finally {
-      setBusy(false);
-    }
-  };
+    if (!files.length) return;
 
-  const metaFields = [
-    'title', 'document_number', 'document_type', 'issued_date',
-    'effective_date', 'expiry_date', 'issuing_body', 'signer_title', 'signer_name',
-  ];
+    setBusy(true);
+    setResults([]);
+    const nextResults = [];
+
+    for (const file of files) {
+      try {
+        const form = new FormData();
+        form.append('file', file);
+        form.append('is_legal_document', 'false');
+
+        const res = await api('/admin/documents/import', { method: 'POST', body: form });
+        const data = await res.json();
+        nextResults.push({ file_name: file.name, ok: true, data });
+      } catch (err) {
+        nextResults.push({
+          file_name: file.name,
+          ok: false,
+          error: err.message || 'Import failed',
+        });
+      }
+      setResults([...nextResults]);
+    }
+
+    const successCount = nextResults.filter((result) => result.ok).length;
+    if (successCount === nextResults.length) {
+      toast.success(`${successCount}/${nextResults.length} files imported.`);
+      setFiles([]);
+      e.target.reset();
+    } else {
+      toast.error(`${successCount}/${nextResults.length} files imported.`);
+    }
+    setBusy(false);
+  };
 
   return (
     <div className="admin-page animate-fadeIn">
@@ -61,55 +61,61 @@ export default function ImportDocxPage() {
           <input
             type="file"
             accept=".docx"
-            onChange={(e) => setFile(e.target.files?.[0] || null)}
+            multiple
+            onChange={(e) => setFiles(Array.from(e.target.files || []))}
+            disabled={busy}
           />
         </div>
 
-        <div className="checkbox-row">
-          <input
-            type="checkbox"
-            id="is-legal"
-            checked={isLegal}
-            onChange={(e) => setIsLegal(e.target.checked)}
-          />
-          <label htmlFor="is-legal" style={{ marginBottom: 0, textTransform: 'none', fontWeight: 500 }}>
-            {t('admin.import.legal_doc')}
-          </label>
-        </div>
-
-        <h3 style={{ margin: '8px 0 0' }}>Metadata</h3>
-        <div className="metadata-grid">
-          {metaFields.map((key) => (
-            <div key={key} className="form-group">
-              <label>{t(`admin.import.fields.${key}`)}</label>
-              <input
-                value={metadata[key] || ''}
-                onChange={(e) => setMetadata({ ...metadata, [key]: e.target.value })}
-              />
-            </div>
-          ))}
-          <div className="form-group">
-            <label>{t('admin.import.fields.validity_status')}</label>
-            <select
-              value={metadata.validity_status || 'active'}
-              onChange={(e) => setMetadata({ ...metadata, validity_status: e.target.value })}
-            >
-              {VALIDITY_OPTIONS.map((v) => (
-                <option key={v} value={v}>{t(`validity.${v}`)}</option>
-              ))}
-            </select>
+        {files.length > 0 && (
+          <div className="import-file-list">
+            {files.map((file) => (
+              <span key={`${file.name}-${file.lastModified}`} className="badge badge-info">
+                {file.name}
+              </span>
+            ))}
           </div>
-        </div>
+        )}
 
-        <button type="submit" className="btn btn-primary" disabled={busy || !file}>
+        <button type="submit" className="btn btn-primary" disabled={busy || !files.length}>
           {busy ? <><span className="spinner" /> {t('admin.import.importing')}</> : t('admin.import.import_btn')}
         </button>
       </form>
 
-      {result && (
+      {results.length > 0 && (
         <div className="card mt-lg animate-slideUp">
           <h3>Import Result</h3>
-          <pre className="result-json">{JSON.stringify(result, null, 2)}</pre>
+          <div className="table-container" style={{ border: 'none' }}>
+            <table>
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>File</th>
+                  <th>Status</th>
+                  <th>Document</th>
+                </tr>
+              </thead>
+              <tbody>
+                {results.map((result, index) => (
+                  <tr key={`${result.file_name}-${index}`}>
+                    <td>{index + 1}</td>
+                    <td className="truncate" style={{ maxWidth: 360 }}>{result.file_name}</td>
+                    <td>
+                      <span className={`badge ${result.ok ? 'badge-success' : 'badge-danger'}`}>
+                        {result.ok ? result.data?.status || 'imported' : 'failed'}
+                      </span>
+                    </td>
+                    <td className="truncate" style={{ maxWidth: 420 }}>
+                      {result.ok
+                        ? result.data?.title || result.data?.document_number || result.data?.document_id
+                        : result.error}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <pre className="result-json">{JSON.stringify(results, null, 2)}</pre>
         </div>
       )}
     </div>

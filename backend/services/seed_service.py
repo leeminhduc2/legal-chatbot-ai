@@ -3,7 +3,7 @@ from __future__ import annotations
 import logging
 
 from backend.config import Config
-from backend.services.auth_service import AuthService, ROLE_ADMIN
+from backend.services.auth_service import AuthError, AuthService, ROLE_ADMIN
 
 
 logger = logging.getLogger(__name__)
@@ -25,9 +25,14 @@ def seed_admin_user(config: Config) -> None:
         logger.info("Admin seed user already exists; skipping seed.")
         return
 
-    auth_service.create_user(
-        username=config.admin_username,
-        password=config.admin_password,
-        role=ROLE_ADMIN,
-    )
+    try:
+        auth_service.create_user(
+            username=config.admin_username,
+            password=config.admin_password,
+            role=ROLE_ADMIN,
+        )
+    except AuthError as exc:
+        logger.error("Admin seed user is invalid: %s", exc.message)
+        return
+
     logger.info("Seeded initial admin user from environment.")

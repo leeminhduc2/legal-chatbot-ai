@@ -1,9 +1,11 @@
 from __future__ import annotations
 
 import io
+import json
 import os
 import sqlite3
 import tempfile
+import time
 import unittest
 from pathlib import Path
 from unittest.mock import patch
@@ -13,6 +15,7 @@ from docx import Document
 from backend.config import Config
 from backend.models.database import init_db
 from backend.services.auth_service import AuthService, ROLE_BUSINESS_USER
+from scripts.reset_documents_and_indexes import reset_sqlite_documents
 
 
 class AdminDocxImportTest(unittest.TestCase):
@@ -118,6 +121,40 @@ class AdminDocxImportTest(unittest.TestCase):
         self.assertEqual(document["signer_title"], "CHU TICH QUOC HOI")
         self.assertEqual(document["signer_name"], "Tran Thanh Man")
 
+    def test_import_with_required_metadata_auto_publishes(self) -> None:
+        token = self._login("admin", "password")
+        writers = make_fake_writers()
+        data = {
+            "file": (make_docx_file(), "sample.docx"),
+            **complete_publish_metadata(),
+        }
+        with patch(
+            "backend.services.indexing_service.build_default_indexing_providers",
+            return_value=writers,
+        ):
+            response = self.client.post(
+                "/api/v1/admin/documents/import",
+                headers=self._auth_headers(token),
+                data=data,
+                content_type="multipart/form-data",
+            )
+            self.assertEqual(response.status_code, 201, response.get_data(as_text=True))
+            payload = response.get_json()
+            self.assertEqual(payload["status"], "queued")
+            publish_result = payload["publish_result"]
+            self.assertEqual(publish_result["status"], "queued")
+            self.assertFalse(payload["publish_blockers"])
+            self._wait_for_pipeline(token, publish_result["pipeline_run_id"], "published")
+
+        for writer in writers:
+            self.assertEqual(writer.indexed_batches, [payload["import_batch_id"]])
+
+        detail = self.client.get(
+            f"/api/v1/admin/documents/{payload['document_id']}?scope=active",
+            headers=self._auth_headers(token),
+        )
+        self.assertEqual(detail.get_json()["version"]["status"], "published")
+
     def test_non_admin_cannot_import(self) -> None:
         AuthService(self.db_path).create_user("user", "password", ROLE_BUSINESS_USER)
         token = self._login("user", "password")
@@ -135,7 +172,7 @@ class AdminDocxImportTest(unittest.TestCase):
 
     def test_admin_can_publish_ready_for_review_document_with_index_writers(self) -> None:
         token = self._login("admin", "password")
-        import_payload = self._import_sample_document(token)
+        import_payload = self._import_publishable_review_document(token)
         writers = make_fake_writers()
 
         with patch(
@@ -146,14 +183,25 @@ class AdminDocxImportTest(unittest.TestCase):
                 f"/api/v1/admin/documents/{import_payload['document_id']}/publish",
                 headers=self._auth_headers(token),
             )
+            self.assertEqual(response.status_code, 202, response.get_data(as_text=True))
+            payload = response.get_json()
+            self.assertEqual(payload["status"], "queued")
+            pipeline_detail = self._wait_for_pipeline(
+                token,
+                payload["pipeline_run_id"],
+                "published",
+            )
 
-        self.assertEqual(response.status_code, 200, response.get_data(as_text=True))
-        payload = response.get_json()
-        self.assertEqual(payload["status"], "published")
-        self.assertEqual(payload["writers"]["neo4j"], "indexed")
-        self.assertEqual(payload["writers"]["chroma"], "indexed")
-        self.assertEqual(payload["writers"]["elasticsearch"], "indexed")
-        self.assertIn("default active-only retrieval", payload["warnings"][0])
+        published_event = pipeline_detail["events"][-1]
+        published_payload = json.loads(published_event["payload_json"])
+        self.assertEqual(published_payload["writer_statuses"]["neo4j"], "indexed")
+        self.assertEqual(published_payload["writer_statuses"]["chroma"], "indexed")
+        self.assertEqual(published_payload["writer_statuses"]["elasticsearch"], "indexed")
+        self.assertIn("No admin-curated document relations", published_payload["warnings"][0])
+        self.assertIn(
+            "vector_indexing",
+            {event["state"] for event in pipeline_detail["events"]},
+        )
         for writer in writers:
             self.assertEqual(writer.indexed_batches, [import_payload["import_batch_id"]])
 
@@ -180,9 +228,31 @@ class AdminDocxImportTest(unittest.TestCase):
 
         self.assertEqual(response.status_code, 403)
 
+    def test_duplicate_publish_returns_existing_active_pipeline_run(self) -> None:
+        token = self._login("admin", "password")
+        import_payload = self._import_publishable_review_document(token)
+
+        with patch("backend.services.indexing_service.submit_publish_job"):
+            first = self.client.post(
+                f"/api/v1/admin/documents/{import_payload['document_id']}/publish",
+                headers=self._auth_headers(token),
+            )
+            second = self.client.post(
+                f"/api/v1/admin/documents/{import_payload['document_id']}/publish",
+                headers=self._auth_headers(token),
+            )
+
+        self.assertEqual(first.status_code, 202, first.get_data(as_text=True))
+        self.assertEqual(second.status_code, 202, second.get_data(as_text=True))
+        first_payload = first.get_json()
+        second_payload = second.get_json()
+        self.assertEqual(first_payload["pipeline_run_id"], second_payload["pipeline_run_id"])
+        self.assertFalse(first_payload["already_running"])
+        self.assertTrue(second_payload["already_running"])
+
     def test_publish_failure_keeps_document_ready_for_review_and_cleans_up(self) -> None:
         token = self._login("admin", "password")
-        import_payload = self._import_sample_document(token)
+        import_payload = self._import_publishable_review_document(token)
         writers = [
             FakeIndexWriter("neo4j"),
             FakeIndexWriter("chroma", fail_index=True),
@@ -197,9 +267,15 @@ class AdminDocxImportTest(unittest.TestCase):
                 f"/api/v1/admin/documents/{import_payload['document_id']}/publish",
                 headers=self._auth_headers(token),
             )
+            self.assertEqual(response.status_code, 202, response.get_data(as_text=True))
+            pipeline_detail = self._wait_for_pipeline(
+                token,
+                response.get_json()["pipeline_run_id"],
+                "failed",
+            )
 
-        self.assertEqual(response.status_code, 400)
-        self.assertEqual(response.get_json()["error"]["code"], "PUBLISH_FAILED")
+        failed_payload = json.loads(pipeline_detail["events"][-1]["payload_json"])
+        self.assertEqual(failed_payload["code"], "RuntimeError")
         self.assertEqual(writers[0].deleted_batches, [import_payload["import_batch_id"]])
         self.assertEqual(writers[1].deleted_batches, [])
 
@@ -209,9 +285,20 @@ class AdminDocxImportTest(unittest.TestCase):
         )
         self.assertEqual(detail.get_json()["version"]["status"], "ready_for_review")
 
-    def test_rollback_deletes_indexed_batch_and_marks_version_rolled_back(self) -> None:
+    def test_unknown_validity_status_cannot_publish(self) -> None:
         token = self._login("admin", "password")
         import_payload = self._import_sample_document(token)
+        response = self.client.post(
+            f"/api/v1/admin/documents/{import_payload['document_id']}/publish",
+            headers=self._auth_headers(token),
+        )
+
+        self.assertEqual(response.status_code, 409)
+        self.assertEqual(response.get_json()["error"]["code"], "DOCUMENT_NOT_PUBLISHABLE")
+
+    def test_editing_published_document_reindexes_new_version(self) -> None:
+        token = self._login("admin", "password")
+        import_payload = self._import_publishable_review_document(token)
         with patch(
             "backend.services.indexing_service.build_default_indexing_providers",
             return_value=make_fake_writers(),
@@ -220,7 +307,103 @@ class AdminDocxImportTest(unittest.TestCase):
                 f"/api/v1/admin/documents/{import_payload['document_id']}/publish",
                 headers=self._auth_headers(token),
             )
-        self.assertEqual(publish.status_code, 200, publish.get_data(as_text=True))
+            self.assertEqual(publish.status_code, 202, publish.get_data(as_text=True))
+            self._wait_for_pipeline(token, publish.get_json()["pipeline_run_id"], "published")
+        old_batch = import_payload["import_batch_id"]
+
+        edit_writers = make_fake_writers()
+        with patch(
+            "backend.services.indexing_service.build_default_indexing_providers",
+            return_value=edit_writers,
+        ):
+            edited = self.client.patch(
+                f"/api/v1/admin/documents/{import_payload['document_id']}/metadata?auto_publish=1",
+                headers=self._auth_headers(token),
+                json={**complete_publish_metadata(), "title": "Quyet dinh da publish lai"},
+            )
+            self.assertEqual(edited.status_code, 200, edited.get_data(as_text=True))
+            payload = edited.get_json()
+            self.assertEqual(payload["version"]["status"], "ready_for_review")
+            self.assertEqual(payload["publish_result"]["status"], "queued")
+            self._wait_for_pipeline(token, payload["publish_result"]["pipeline_run_id"], "published")
+
+        active = self.client.get(
+            f"/api/v1/admin/documents/{import_payload['document_id']}?scope=active",
+            headers=self._auth_headers(token),
+        )
+        active_payload = active.get_json()
+        self.assertEqual(active_payload["version"]["status"], "published")
+        self.assertEqual(active_payload["document"]["active_version"], 2)
+        self.assertEqual(active_payload["document"]["title"], "Quyet dinh da publish lai")
+        for writer in edit_writers:
+            self.assertEqual(writer.deleted_batches, [old_batch])
+
+    def test_editing_published_document_reindex_failure_keeps_old_active(self) -> None:
+        token = self._login("admin", "password")
+        import_payload = self._import_publishable_review_document(token)
+        with patch(
+            "backend.services.indexing_service.build_default_indexing_providers",
+            return_value=make_fake_writers(),
+        ):
+            publish = self.client.post(
+                f"/api/v1/admin/documents/{import_payload['document_id']}/publish",
+                headers=self._auth_headers(token),
+            )
+            self.assertEqual(publish.status_code, 202, publish.get_data(as_text=True))
+            self._wait_for_pipeline(token, publish.get_json()["pipeline_run_id"], "published")
+
+        failing_writers = [
+            FakeIndexWriter("neo4j"),
+            FakeIndexWriter("chroma", fail_index=True),
+            FakeIndexWriter("elasticsearch"),
+        ]
+        with patch(
+            "backend.services.indexing_service.build_default_indexing_providers",
+            return_value=failing_writers,
+        ):
+            edited = self.client.patch(
+                f"/api/v1/admin/documents/{import_payload['document_id']}/metadata?auto_publish=1",
+                headers=self._auth_headers(token),
+                json={**complete_publish_metadata(), "title": "Ban sua loi index"},
+            )
+            self.assertEqual(edited.status_code, 200, edited.get_data(as_text=True))
+            edited_payload = edited.get_json()
+            self.assertEqual(edited_payload["version"]["status"], "ready_for_review")
+            self.assertEqual(edited_payload["publish_result"]["status"], "queued")
+            self._wait_for_pipeline(
+                token,
+                edited_payload["publish_result"]["pipeline_run_id"],
+                "failed",
+            )
+
+        latest = self.client.get(
+            f"/api/v1/admin/documents/{import_payload['document_id']}",
+            headers=self._auth_headers(token),
+        )
+        self.assertTrue(latest.get_json()["needs_republish"])
+
+        active = self.client.get(
+            f"/api/v1/admin/documents/{import_payload['document_id']}?scope=active",
+            headers=self._auth_headers(token),
+        )
+        active_payload = active.get_json()
+        self.assertEqual(active_payload["version"]["status"], "published")
+        self.assertEqual(active_payload["document"]["active_version"], 1)
+        self.assertNotEqual(active_payload["document"]["title"], "Ban sua loi index")
+
+    def test_rollback_deletes_indexed_batch_and_marks_version_rolled_back(self) -> None:
+        token = self._login("admin", "password")
+        import_payload = self._import_publishable_review_document(token)
+        with patch(
+            "backend.services.indexing_service.build_default_indexing_providers",
+            return_value=make_fake_writers(),
+        ):
+            publish = self.client.post(
+                f"/api/v1/admin/documents/{import_payload['document_id']}/publish",
+                headers=self._auth_headers(token),
+            )
+            self.assertEqual(publish.status_code, 202, publish.get_data(as_text=True))
+            self._wait_for_pipeline(token, publish.get_json()["pipeline_run_id"], "published")
         publish_payload = publish.get_json()
 
         rollback_writers = make_fake_writers()
@@ -351,7 +534,7 @@ class AdminDocxImportTest(unittest.TestCase):
 
     def test_admin_can_hard_delete_document_and_keep_pipeline_logs(self) -> None:
         token = self._login("admin", "password")
-        import_payload = self._import_sample_document(token)
+        import_payload = self._import_publishable_review_document(token)
         document_id = import_payload["document_id"]
         writers = make_fake_writers()
 
@@ -363,7 +546,8 @@ class AdminDocxImportTest(unittest.TestCase):
                 f"/api/v1/admin/documents/{document_id}/publish",
                 headers=self._auth_headers(token),
             )
-        self.assertEqual(publish.status_code, 200, publish.get_data(as_text=True))
+            self.assertEqual(publish.status_code, 202, publish.get_data(as_text=True))
+            self._wait_for_pipeline(token, publish.get_json()["pipeline_run_id"], "published")
 
         raw_path = Path(import_payload["raw_docx_path"])
         chunk_path = Path(import_payload["chunk_json_path"])
@@ -405,6 +589,27 @@ class AdminDocxImportTest(unittest.TestCase):
         self.assertEqual(registry_count, 0)
         self.assertEqual(version_count, 0)
         self.assertGreater(event_count, 0)
+
+    def test_reset_documents_script_clears_documents_and_preserves_users(self) -> None:
+        token = self._login("admin", "password")
+        self._import_sample_document(token)
+
+        reset_sqlite_documents(Path(self.db_path), dry_run=False)
+
+        connection = sqlite3.connect(self.db_path)
+        try:
+            users_count = connection.execute("SELECT COUNT(*) FROM users").fetchone()[0]
+            documents_count = connection.execute("SELECT COUNT(*) FROM document_registry").fetchone()[0]
+            versions_count = connection.execute("SELECT COUNT(*) FROM document_versions").fetchone()[0]
+            document_runs_count = connection.execute(
+                "SELECT COUNT(*) FROM pipeline_runs WHERE pipeline_type = 'import_document'"
+            ).fetchone()[0]
+        finally:
+            connection.close()
+        self.assertGreaterEqual(users_count, 1)
+        self.assertEqual(documents_count, 0)
+        self.assertEqual(versions_count, 0)
+        self.assertEqual(document_runs_count, 0)
 
     def test_old_crawl_batch_id_is_migrated_to_import_batch_id(self) -> None:
         old_db_path = str(Path(self.temp_dir.name) / "old.sqlite3")
@@ -500,6 +705,42 @@ class AdminDocxImportTest(unittest.TestCase):
         self.assertEqual(response.status_code, 201, response.get_data(as_text=True))
         return response.get_json()
 
+    def _import_publishable_review_document(self, token: str) -> dict:
+        payload = self._import_sample_document(token)
+        response = self.client.patch(
+            f"/api/v1/admin/documents/{payload['document_id']}/metadata",
+            headers=self._auth_headers(token),
+            json=complete_publish_metadata(),
+        )
+        self.assertEqual(response.status_code, 200, response.get_data(as_text=True))
+        return {
+            **payload,
+            "import_batch_id": response.get_json()["version"]["import_batch_id"],
+        }
+
+    def _wait_for_pipeline(
+        self,
+        token: str,
+        pipeline_run_id: str,
+        expected_status: str,
+        attempts: int = 40,
+    ) -> dict:
+        detail_payload = {}
+        for _ in range(attempts):
+            detail = self.client.get(
+                f"/api/v1/admin/pipeline/{pipeline_run_id}",
+                headers=self._auth_headers(token),
+            )
+            self.assertEqual(detail.status_code, 200, detail.get_data(as_text=True))
+            detail_payload = detail.get_json()
+            current_status = detail_payload["pipeline_run"]["status"]
+            if current_status == expected_status:
+                return detail_payload
+            if current_status == "failed" and expected_status != "failed":
+                self.fail(detail_payload)
+            time.sleep(0.05)
+        self.fail(detail_payload)
+
     @staticmethod
     def _auth_headers(token: str) -> dict[str, str]:
         return {"Authorization": f"Bearer {token}"}
@@ -529,6 +770,18 @@ def make_fake_writers() -> list[FakeIndexWriter]:
         FakeIndexWriter("chroma"),
         FakeIndexWriter("elasticsearch"),
     ]
+
+
+def complete_publish_metadata() -> dict[str, str]:
+    return {
+        "title": "Quyet dinh test",
+        "document_number": "01/2026/QD-TEST",
+        "document_type": "Quyet dinh",
+        "issuing_body": "QUOC HOI",
+        "issued_date": "2026-01-01",
+        "effective_date": "2026-01-01",
+        "validity_status": "active",
+    }
 
 
 def make_docx_file() -> io.BytesIO:

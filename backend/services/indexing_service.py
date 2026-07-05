@@ -2,8 +2,10 @@ from __future__ import annotations
 
 import hashlib
 import json
+import logging
 import math
 import uuid
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
 from pathlib import Path
@@ -12,6 +14,7 @@ from typing import Any, Protocol
 from backend.config import Config
 from backend.models.database import get_connection, row_to_dict
 from backend.services.document_import_service import (
+    get_publish_blockers,
     STATUS_READY_FOR_REVIEW,
     VALIDITY_UNKNOWN,
     optional_str,
@@ -23,14 +26,33 @@ PIPELINE_PUBLISH_DOCUMENT = "publish_document"
 PIPELINE_ROLLBACK = "rollback_indexes"
 STATUS_FAILED = "failed"
 STATUS_PENDING = "pending"
+STATUS_QUEUED = "queued"
 STATUS_PUBLISH_STARTED = "publish_started"
+STATUS_GRAPH_INDEXING = "graph_indexing"
 STATUS_GRAPH_INDEXED = "graph_indexed"
+STATUS_VECTOR_INDEXING = "vector_indexing"
 STATUS_VECTOR_INDEXED = "vector_indexed"
+STATUS_BM25_INDEXING = "bm25_indexing"
 STATUS_BM25_INDEXED = "bm25_indexed"
 STATUS_PUBLISHED = "published"
 STATUS_ROLLBACK_STARTED = "rollback_started"
 STATUS_ROLLED_BACK = "rolled_back"
 STATUS_SUPERSEDED = "superseded"
+
+PUBLISH_ACTIVE_STATUSES = {
+    STATUS_PENDING,
+    STATUS_QUEUED,
+    STATUS_PUBLISH_STARTED,
+    STATUS_GRAPH_INDEXING,
+    STATUS_GRAPH_INDEXED,
+    STATUS_VECTOR_INDEXING,
+    STATUS_VECTOR_INDEXED,
+    STATUS_BM25_INDEXING,
+    STATUS_BM25_INDEXED,
+}
+
+_PUBLISH_EXECUTOR = ThreadPoolExecutor(max_workers=1, thread_name_prefix="publish-indexing")
+logger = logging.getLogger(__name__)
 
 
 class IndexingError(Exception):
@@ -570,33 +592,92 @@ class DocumentIndexingService:
         document_id: str,
         requested_by_user_id: str,
     ) -> dict[str, Any]:
-        version = self._get_latest_version(document_id)
-        if version is None:
-            raise IndexingError("DOCUMENT_NOT_FOUND", "Document not found.", 404)
-        if version["status"] != STATUS_READY_FOR_REVIEW:
-            raise IndexingError(
-                "DOCUMENT_NOT_READY",
-                "Only ready_for_review documents can be published.",
-                409,
-                {"current_status": version["status"]},
-            )
-
+        version = self._validate_publish_candidate(document_id)
         pipeline_run_id = str(uuid.uuid4())
-        import_batch_id = version["import_batch_id"]
         self._create_pipeline_run(
             pipeline_run_id=pipeline_run_id,
             pipeline_type=PIPELINE_PUBLISH_DOCUMENT,
             requested_by_user_id=requested_by_user_id,
             status=STATUS_PENDING,
-            input_json={
+            input_json=publish_pipeline_input(document_id, version),
+        )
+        return self.run_publish_pipeline(pipeline_run_id)
+
+    def enqueue_publish_document(
+        self,
+        document_id: str,
+        requested_by_user_id: str,
+    ) -> dict[str, Any]:
+        version = self._validate_publish_candidate(document_id)
+        import_batch_id = version["import_batch_id"]
+        existing_run = self._get_active_publish_run(
+            document_id=document_id,
+            version=int(version["version"]),
+            import_batch_id=import_batch_id,
+        )
+        if existing_run is not None:
+            return {
                 "document_id": document_id,
                 "version": version["version"],
                 "import_batch_id": import_batch_id,
-            },
+                "pipeline_run_id": existing_run["id"],
+                "status": existing_run["status"],
+                "already_running": True,
+            }
+
+        pipeline_run_id = str(uuid.uuid4())
+        self._create_pipeline_run(
+            pipeline_run_id=pipeline_run_id,
+            pipeline_type=PIPELINE_PUBLISH_DOCUMENT,
+            requested_by_user_id=requested_by_user_id,
+            status=STATUS_QUEUED,
+            input_json=publish_pipeline_input(document_id, version),
         )
+        submit_publish_job(self.config, pipeline_run_id)
+        return {
+            "document_id": document_id,
+            "version": version["version"],
+            "import_batch_id": import_batch_id,
+            "pipeline_run_id": pipeline_run_id,
+            "status": STATUS_QUEUED,
+            "already_running": False,
+        }
+
+    def run_publish_pipeline(self, pipeline_run_id: str) -> dict[str, Any]:
+        pipeline_run = self._get_pipeline_run(pipeline_run_id)
+        if pipeline_run is None:
+            raise IndexingError("DOCUMENT_NOT_FOUND", "Pipeline run not found.", 404)
+        input_json = parse_json(pipeline_run.get("input_json"))
+        document_id = optional_str(input_json.get("document_id"))
+        import_batch_id = optional_str(input_json.get("import_batch_id"))
+        if not document_id or not import_batch_id:
+            self._fail_pipeline(
+                pipeline_run_id,
+                "Publish failed.",
+                {"reason": "Publish pipeline input is missing document_id or import_batch_id."},
+            )
+            raise IndexingError(
+                "PUBLISH_INPUT_INVALID",
+                "Publish pipeline input is missing document_id or import_batch_id.",
+            )
 
         indexed_providers: list[IndexWriter] = []
         try:
+            version = self._get_version_by_batch(import_batch_id)
+            if version is None or version["document_id"] != document_id:
+                raise IndexingError(
+                    "DOCUMENT_NOT_FOUND",
+                    "Document version for this publish pipeline was not found.",
+                    404,
+                    {"import_batch_id": import_batch_id},
+                )
+            if version["status"] != STATUS_READY_FOR_REVIEW:
+                raise IndexingError(
+                    "DOCUMENT_NOT_READY",
+                    "Only ready_for_review documents can be published.",
+                    409,
+                    {"current_status": version["status"]},
+                )
             raw_chunks = load_chunk_json(Path(version["chunk_json_path"]))
             validate_chunks(raw_chunks)
             chunks = normalize_chunk_records(
@@ -623,17 +704,23 @@ class DocumentIndexingService:
 
             writer_statuses: dict[str, str] = {}
             providers = self.providers or build_default_indexing_providers(self.config)
-            for provider, state in [
-                (providers[0], STATUS_GRAPH_INDEXED),
-                (providers[1], STATUS_VECTOR_INDEXED),
-                (providers[2], STATUS_BM25_INDEXED),
+            for provider, started_state, completed_state in [
+                (providers[0], STATUS_GRAPH_INDEXING, STATUS_GRAPH_INDEXED),
+                (providers[1], STATUS_VECTOR_INDEXING, STATUS_VECTOR_INDEXED),
+                (providers[2], STATUS_BM25_INDEXING, STATUS_BM25_INDEXED),
             ]:
+                self._mark_pipeline(
+                    pipeline_run_id,
+                    started_state,
+                    f"{provider.name} indexing started.",
+                    {"provider": provider.name, "chunks_count": len(chunks)},
+                )
                 provider.index_chunks(chunks, relations)
                 indexed_providers.append(provider)
                 writer_statuses[provider.name] = "indexed"
                 self._mark_pipeline(
                     pipeline_run_id,
-                    state,
+                    completed_state,
                     f"{provider.name} indexing completed.",
                     {"provider": provider.name, "chunks_count": len(chunks)},
                 )
@@ -665,11 +752,19 @@ class DocumentIndexingService:
             details = exception_details(exc)
             if cleanup_errors:
                 details["cleanup_errors"] = cleanup_errors
+            failure_message = exc.message if isinstance(exc, IndexingError) else "Publish failed."
             self._fail_pipeline(
                 pipeline_run_id,
-                "Publish failed.",
+                failure_message,
                 details,
             )
+            if "version" in locals() and version is not None:
+                self._mark_publish_failure(
+                    document_id=document_id,
+                    version=int(version["version"]),
+                    message=failure_message,
+                    details=details,
+                )
             if isinstance(exc, IndexingError):
                 raise
             if hasattr(exc, "code") and hasattr(exc, "message"):
@@ -904,6 +999,27 @@ class DocumentIndexingService:
                 ).fetchone()
             )
 
+    def _validate_publish_candidate(self, document_id: str) -> dict[str, Any]:
+        version = self._get_latest_version(document_id)
+        if version is None:
+            raise IndexingError("DOCUMENT_NOT_FOUND", "Document not found.", 404)
+        if version["status"] != STATUS_READY_FOR_REVIEW:
+            raise IndexingError(
+                "DOCUMENT_NOT_READY",
+                "Only ready_for_review documents can be published.",
+                409,
+                {"current_status": version["status"]},
+            )
+        publish_blockers = get_publish_blockers(parse_json(version.get("metadata_json")))
+        if publish_blockers:
+            raise IndexingError(
+                "DOCUMENT_NOT_PUBLISHABLE",
+                "Document is missing required publish metadata.",
+                409,
+                {"publish_blockers": publish_blockers},
+            )
+        return version
+
     def _get_version_by_batch(self, import_batch_id: str) -> dict[str, Any] | None:
         with get_connection(self.db_path) as connection:
             return row_to_dict(
@@ -927,6 +1043,35 @@ class DocumentIndexingService:
                     (run_id,),
                 ).fetchone()
             )
+
+    def _get_active_publish_run(
+        self,
+        document_id: str,
+        version: int,
+        import_batch_id: str,
+    ) -> dict[str, Any] | None:
+        placeholders = ",".join("?" for _ in PUBLISH_ACTIVE_STATUSES)
+        with get_connection(self.db_path) as connection:
+            rows = connection.execute(
+                f"""
+                SELECT *
+                FROM pipeline_runs
+                WHERE pipeline_type = ?
+                  AND status IN ({placeholders})
+                ORDER BY updated_at DESC
+                """,
+                (PIPELINE_PUBLISH_DOCUMENT, *PUBLISH_ACTIVE_STATUSES),
+            ).fetchall()
+        for row in rows:
+            run = dict(row)
+            input_json = parse_json(run.get("input_json"))
+            if (
+                optional_str(input_json.get("document_id")) == document_id
+                and optional_str(input_json.get("import_batch_id")) == import_batch_id
+                and int(input_json.get("version") or 0) == version
+            ):
+                return run
+        return None
 
     def _get_relations(self, import_batch_id: str) -> list[dict[str, Any]]:
         with get_connection(self.db_path) as connection:
@@ -991,6 +1136,21 @@ class DocumentIndexingService:
     ) -> None:
         now = utc_now_iso()
         with get_connection(self.db_path) as connection:
+            version_row = row_to_dict(
+                connection.execute(
+                    """
+                    SELECT metadata_json
+                    FROM document_versions
+                    WHERE document_id = ? AND version = ?
+                    """,
+                    (document_id, version),
+                ).fetchone()
+            )
+            metadata_json = parse_json(version_row.get("metadata_json") if version_row else None)
+            metadata_json["needs_republish"] = False
+            metadata_json["last_publish_error"] = None
+            metadata_json["is_published"] = True
+            metadata_json["published_version"] = version
             if superseded_batches:
                 connection.execute(
                     f"""
@@ -1011,18 +1171,51 @@ class DocumentIndexingService:
             connection.execute(
                 """
                 UPDATE document_versions
-                SET status = ?
+                SET status = ?, metadata_json = ?
                 WHERE document_id = ? AND version = ?
                 """,
-                (STATUS_PUBLISHED, document_id, version),
+                (
+                    STATUS_PUBLISHED,
+                    json.dumps(metadata_json, ensure_ascii=False),
+                    document_id,
+                    version,
+                ),
             )
             connection.execute(
                 """
                 UPDATE document_registry
-                SET active_version = ?, is_published = 1, updated_at = ?
+                SET title = ?,
+                    document_number = ?,
+                    issuing_body = ?,
+                    signer_title = ?,
+                    signer_name = ?,
+                    document_type = ?,
+                    issued_date = ?,
+                    effective_date = ?,
+                    expiry_date = ?,
+                    validity_status = ?,
+                    raw_metadata_json = ?,
+                    active_version = ?,
+                    is_published = 1,
+                    updated_at = ?
                 WHERE document_id = ?
                 """,
-                (version, now, document_id),
+                (
+                    metadata_json.get("title"),
+                    metadata_json.get("document_number"),
+                    metadata_json.get("issuing_body"),
+                    metadata_json.get("signer_title"),
+                    metadata_json.get("signer_name"),
+                    metadata_json.get("document_type"),
+                    metadata_json.get("issued_date"),
+                    metadata_json.get("effective_date"),
+                    metadata_json.get("expiry_date"),
+                    metadata_json.get("validity_status"),
+                    json.dumps(metadata_json, ensure_ascii=False),
+                    version,
+                    now,
+                    document_id,
+                ),
             )
             connection.execute(
                 """
@@ -1031,6 +1224,40 @@ class DocumentIndexingService:
                 WHERE import_batch_id = ?
                 """,
                 (import_batch_id,),
+            )
+            connection.commit()
+
+    def _mark_publish_failure(
+        self,
+        document_id: str,
+        version: int,
+        message: str,
+        details: dict[str, Any],
+    ) -> None:
+        with get_connection(self.db_path) as connection:
+            row = row_to_dict(
+                connection.execute(
+                    """
+                    SELECT metadata_json
+                    FROM document_versions
+                    WHERE document_id = ? AND version = ?
+                    """,
+                    (document_id, version),
+                ).fetchone()
+            )
+            metadata_json = parse_json(row.get("metadata_json") if row else None)
+            metadata_json["needs_republish"] = True
+            metadata_json["last_publish_error"] = {
+                "message": message,
+                "details": details,
+            }
+            connection.execute(
+                """
+                UPDATE document_versions
+                SET metadata_json = ?
+                WHERE document_id = ? AND version = ?
+                """,
+                (json.dumps(metadata_json, ensure_ascii=False), document_id, version),
             )
             connection.commit()
 
@@ -1227,6 +1454,25 @@ def build_default_indexing_providers(config: Config) -> list[IndexWriter]:
         ChromaVectorProvider(config),
         ElasticsearchBM25Provider(config),
     ]
+
+
+def publish_pipeline_input(document_id: str, version: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "document_id": document_id,
+        "version": int(version["version"]),
+        "import_batch_id": version["import_batch_id"],
+    }
+
+
+def submit_publish_job(config: Config, pipeline_run_id: str) -> None:
+    _PUBLISH_EXECUTOR.submit(_run_publish_job, config, pipeline_run_id)
+
+
+def _run_publish_job(config: Config, pipeline_run_id: str) -> None:
+    try:
+        DocumentIndexingService(config).run_publish_pipeline(pipeline_run_id)
+    except Exception:
+        logger.exception("Background publish job failed for pipeline_run_id=%s", pipeline_run_id)
 
 
 def load_chunk_json(path: Path) -> list[dict[str, Any]]:

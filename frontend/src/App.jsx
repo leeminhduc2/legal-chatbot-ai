@@ -18,10 +18,9 @@ import AdminLayout from './pages/layouts/AdminLayout';
 import DashboardPage from './pages/admin/DashboardPage';
 import DocumentsPage from './pages/admin/DocumentsPage';
 import ImportDocxPage from './pages/admin/ImportDocxPage';
-import ProcessedDataPage from './pages/admin/ProcessedDataPage';
 import UserManagementPage from './pages/admin/UserManagementPage';
 
-function ProtectedRoute({ children, roles }) {
+function ProtectedRoute({ children, roles, allowGuest = false }) {
   const { user, loading, isAuthenticated, isGuest } = useAuth();
 
   if (loading) {
@@ -32,7 +31,7 @@ function ProtectedRoute({ children, roles }) {
     );
   }
 
-  if (!isAuthenticated && !isGuest) {
+  if (!isAuthenticated && !(allowGuest && isGuest)) {
     return <Navigate to="/login" replace />;
   }
 
@@ -58,6 +57,7 @@ function AppRoutes() {
     <Routes>
       {/* Public */}
       <Route path="/login" element={<LoginPage />} />
+      <Route path="/register" element={<LoginPage initialMode="register" />} />
 
       {/* Home - accessible to all, redirects admin */}
       <Route
@@ -65,15 +65,15 @@ function AppRoutes() {
         element={
           user?.role === 'admin'
             ? <Navigate to="/admin" replace />
-            : <ProtectedRoute><HomePage /></ProtectedRoute>
+            : <ProtectedRoute allowGuest><HomePage /></ProtectedRoute>
         }
       />
 
       {/* Chat - all roles */}
-      <Route path="/chat" element={<ProtectedRoute><ChatPage /></ProtectedRoute>} />
+      <Route path="/chat" element={<ProtectedRoute allowGuest><ChatPage /></ProtectedRoute>} />
 
-      {/* Profile - all logged-in */}
-      <Route path="/profile" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
+      {/* Profile - authenticated non-guest users */}
+      <Route path="/profile" element={<ProtectedRoute roles={['free_user', 'business_user']}><ProfilePage /></ProtectedRoute>} />
 
       {/* Business user features */}
       <Route path="/draft-document" element={<ProtectedRoute roles={['business_user', 'admin']}><DraftDocumentPage /></ProtectedRoute>} />
@@ -91,9 +91,10 @@ function AppRoutes() {
         }
       >
         <Route index element={<DashboardPage />} />
-        <Route path="documents" element={<DocumentsPage />} />
+        <Route path="documents" element={<Navigate to="/admin/documents/published" replace />} />
+        <Route path="documents/published" element={<DocumentsPage mode="published" />} />
+        <Route path="documents/review" element={<DocumentsPage mode="review" />} />
         <Route path="import" element={<ImportDocxPage />} />
-        <Route path="processed" element={<ProcessedDataPage />} />
         <Route path="users" element={<UserManagementPage />} />
         <Route path="profile" element={<ProfilePage embedded />} />
         <Route path="chat" element={<ChatPage />} />

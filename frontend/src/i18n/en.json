@@ -1,7 +1,7 @@
 {
   "app": {
-    "name": "BaoHiem Legal AI",
-    "subtitle": "AI Insurance Law Assistant",
+    "name": "Vietnam Insurance Law AI",
+    "subtitle": "AI Legal Assistant in Insurance",
     "version": "v1.0"
   },
   "nav": {
@@ -23,14 +23,23 @@
   "login": {
     "title": "Welcome Back",
     "subtitle": "Sign in to AI Legal Workspace",
+    "register_title": "Create Account",
+    "register_subtitle": "Register a Free User account to save chat history",
     "username": "Username",
     "password": "Password",
+    "confirm_password": "Confirm Password",
     "submit": "Sign In",
-    "hint": "Try admin/admin or user/user",
+    "register_submit": "Register",
+    "hint": "Free User accounts can save chat history",
+    "switch_to_register": "Need an account? Register",
+    "switch_to_login": "Already have an account? Sign in",
     "or": "OR",
     "guest": "Continue as Guest",
     "error": "Login failed",
-    "success": "Login successful"
+    "success": "Login successful",
+    "register_error": "Registration failed",
+    "register_success": "Account created",
+    "password_mismatch": "Passwords do not match"
   },
   "home": {
     "greeting": "Hello,",
@@ -85,7 +94,12 @@
     "expired": "Expired",
     "typing": "Typing...",
     "empty": "Start a new conversation",
-    "empty_desc": "Ask any question about Vietnamese insurance law."
+    "empty_desc": "Ask any question about Vietnamese insurance law.",
+    "history_loading": "Loading history...",
+    "history_error": "Could not load chat history",
+    "login_for_history": "Sign in or register to save chat history.",
+    "send_error": "Could not send the message.",
+    "no_response": "No response."
   },
   "profile": {
     "title": "Profile",
@@ -108,6 +122,7 @@
   "roles": {
     "admin": "Administrator",
     "business_user": "Business User",
+    "free_user": "Free User",
     "guest": "Guest"
   },
   "admin": {
@@ -115,6 +130,8 @@
       "title": "Admin Console",
       "dashboard": "Dashboard",
       "documents": "Documents",
+      "published_documents": "Published Documents",
+      "review_documents": "Review Queue",
       "import": "Import DOCX",
       "processed": "Processed Data",
       "users": "User Management",
@@ -139,17 +156,21 @@
     },
     "documents": {
       "title": "Document Management",
+      "published_title": "Published Documents",
+      "review_title": "Documents Ready for Review",
       "search": "Search documents...",
       "doc_name": "Document Name",
       "doc_number": "Number",
       "chunks": "Chunks",
       "review": "Review",
+      "doc_status": "Status",
       "actions": "Actions",
       "download": "Download",
       "edit": "Edit",
       "delete": "Delete",
       "publish": "Publish",
       "needs_review": "Needs Review",
+      "needs_republish": "Needs Re-publish",
       "ok": "OK",
       "no_docs": "No documents found.",
       "metadata": "Metadata",
@@ -159,7 +180,13 @@
       "close": "Close",
       "confirm_delete": "Delete permanently",
       "deleted": "Document deleted.",
-      "saved": "Saved successfully."
+      "saved": "Saved successfully.",
+      "missing_fields": "Missing required fields",
+      "published_edit_warning": "Saving published documents reindexes immediately. If reindexing fails, the old published version remains active and this edit moves to review.",
+      "last_publish_error": "Last publish error",
+      "publish_started": "Publishing and indexing started.",
+      "published_success": "Document published successfully.",
+      "publish_connection_error": "Backend connection was interrupted while publishing. Check the backend logs and pipeline events."
     },
     "import": {
       "title": "Import DOCX",
@@ -169,7 +196,7 @@
       "legal_doc": "Legal document",
       "import_btn": "Import Document",
       "importing": "Importing...",
-      "success": "DOCX imported and queued for review.",
+      "success": "DOCX imported. It was published when metadata was complete, or moved to review when required fields were missing.",
       "fields": {
         "title": "Title",
         "document_number": "Document Number",
@@ -200,6 +227,7 @@
     "users": {
       "title": "User Management",
       "add_user": "Add User",
+      "search": "Search users...",
       "username": "Username",
       "role": "Role",
       "created": "Created",
@@ -211,11 +239,18 @@
       "active": "Active",
       "locked": "Locked",
       "password": "Password",
+      "password_optional": "Password (optional)",
+      "keep_password": "Leave blank to keep current password",
+      "username_required": "Username is required.",
+      "password_required": "Password is required.",
+      "password_min": "Password must be at least 6 characters.",
+      "load_error": "Could not load users.",
       "save": "Save",
       "cancel": "Cancel",
       "user_added": "User added.",
       "user_updated": "User updated.",
-      "no_users": "No users found."
+      "no_users": "No users found.",
+      "cannot_change_own_role": "You cannot change your own role."
     }
   },
   "validity": {

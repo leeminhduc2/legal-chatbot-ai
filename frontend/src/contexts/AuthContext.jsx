@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useState, useCallback } from 'react';
-import { apiClient } from '../services/api';
+import { API_BASE, apiClient } from '../services/api';
 
 const AuthContext = createContext(null);
 
@@ -38,8 +38,8 @@ export function AuthProvider({ children }) {
       });
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const login = async (username, password) => {
-    const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || '/api/v1'}/auth/login`, {
+  const authenticate = async (path, username, password) => {
+    const response = await fetch(`${API_BASE}${path}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ username, password }),
@@ -52,6 +52,14 @@ export function AuthProvider({ children }) {
     setToken(data.access_token);
     setUser(data.user);
     return data.user;
+  };
+
+  const login = async (username, password) => {
+    return authenticate('/auth/login', username, password);
+  };
+
+  const register = async (username, password) => {
+    return authenticate('/auth/register', username, password);
   };
 
   const logout = async () => {
@@ -72,6 +80,7 @@ export function AuthProvider({ children }) {
   const isGuest = user?.role === 'guest' && !token;
   const isAdmin = user?.role === 'admin';
   const isBusinessUser = user?.role === 'business_user';
+  const isFreeUser = user?.role === 'free_user';
 
   return (
     <AuthContext.Provider
@@ -80,12 +89,14 @@ export function AuthProvider({ children }) {
         user,
         loading,
         login,
+        register,
         logout,
         loginAsGuest,
         isAuthenticated,
         isGuest,
         isAdmin,
         isBusinessUser,
+        isFreeUser,
         clearAuth,
       }}
     >

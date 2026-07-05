@@ -1,6 +1,6 @@
 {
   "app": {
-    "name": "BaoHiem Legal AI",
+    "name": "Vietnam Insurance Law AI",
     "subtitle": "Trợ lý AI pháp luật bảo hiểm",
     "version": "v1.0"
   },
@@ -23,14 +23,23 @@
   "login": {
     "title": "Chào mừng trở lại",
     "subtitle": "Đăng nhập vào không gian làm việc pháp lý AI",
+    "register_title": "Tạo tài khoản",
+    "register_subtitle": "Đăng ký Free User để lưu lịch sử chat",
     "username": "Tên đăng nhập",
     "password": "Mật khẩu",
+    "confirm_password": "Xác nhận mật khẩu",
     "submit": "Đăng nhập",
-    "hint": "Thử admin/admin hoặc user/user",
+    "register_submit": "Đăng ký",
+    "hint": "Free User có thể lưu lịch sử chat",
+    "switch_to_register": "Chưa có tài khoản? Đăng ký",
+    "switch_to_login": "Đã có tài khoản? Đăng nhập",
     "or": "HOẶC",
     "guest": "Tiếp tục với tư cách khách",
     "error": "Đăng nhập thất bại",
-    "success": "Đăng nhập thành công"
+    "success": "Đăng nhập thành công",
+    "register_error": "Đăng ký thất bại",
+    "register_success": "Đã tạo tài khoản",
+    "password_mismatch": "Mật khẩu không khớp"
   },
   "home": {
     "greeting": "Xin chào,",
@@ -85,7 +94,12 @@
     "expired": "Hết hiệu lực",
     "typing": "Đang trả lời...",
     "empty": "Bắt đầu cuộc trò chuyện mới",
-    "empty_desc": "Hỏi bất kỳ câu hỏi nào về pháp luật bảo hiểm Việt Nam."
+    "empty_desc": "Hỏi bất kỳ câu hỏi nào về pháp luật bảo hiểm Việt Nam.",
+    "history_loading": "Đang tải lịch sử...",
+    "history_error": "Không thể tải lịch sử chat",
+    "login_for_history": "Đăng nhập hoặc đăng ký để lưu lịch sử chat.",
+    "send_error": "Không thể gửi tin nhắn.",
+    "no_response": "Chưa có phản hồi."
   },
   "profile": {
     "title": "Hồ sơ cá nhân",
@@ -108,6 +122,7 @@
   "roles": {
     "admin": "Quản trị viên",
     "business_user": "Doanh nghiệp",
+    "free_user": "Free User",
     "guest": "Khách"
   },
   "admin": {
@@ -115,6 +130,8 @@
       "title": "Admin Console",
       "dashboard": "Bảng điều khiển",
       "documents": "Văn bản",
+      "published_documents": "Văn bản đã xuất bản",
+      "review_documents": "Văn bản cần review",
       "import": "Nhập DOCX",
       "processed": "Dữ liệu đã xử lý",
       "users": "Quản lý người dùng",
@@ -139,17 +156,21 @@
     },
     "documents": {
       "title": "Quản lý văn bản",
+      "published_title": "Văn bản đã xuất bản",
+      "review_title": "Văn bản cần review",
       "search": "Tìm kiếm văn bản...",
       "doc_name": "Tên văn bản",
       "doc_number": "Số hiệu",
       "chunks": "Số chunk",
       "review": "Review",
+      "doc_status": "Trạng thái",
       "actions": "Thao tác",
       "download": "Tải xuống",
       "edit": "Sửa",
       "delete": "Xóa",
       "publish": "Xuất bản",
       "needs_review": "Cần review",
+      "needs_republish": "Cần publish lại",
       "ok": "OK",
       "no_docs": "Chưa có văn bản.",
       "metadata": "Metadata",
@@ -159,7 +180,13 @@
       "close": "Đóng",
       "confirm_delete": "Xóa vĩnh viễn",
       "deleted": "Đã xóa văn bản.",
-      "saved": "Đã lưu thành công."
+      "saved": "Đã lưu thành công.",
+      "missing_fields": "Thiếu trường bắt buộc",
+      "published_edit_warning": "Lưu văn bản đã xuất bản sẽ reindex ngay. Nếu reindex thất bại, bản published cũ vẫn hoạt động và bản sửa sẽ chuyển sang hàng review.",
+      "last_publish_error": "Lỗi publish gần nhất",
+      "publish_started": "Đã bắt đầu publish và indexing.",
+      "published_success": "Đã xuất bản văn bản thành công.",
+      "publish_connection_error": "Kết nối backend bị gián đoạn khi publish. Hãy kiểm tra backend logs và pipeline events."
     },
     "import": {
       "title": "Nhập DOCX",
@@ -169,7 +196,7 @@
       "legal_doc": "Văn bản pháp luật",
       "import_btn": "Nhập văn bản",
       "importing": "Đang nhập...",
-      "success": "Đã import DOCX và đưa vào hàng review.",
+      "success": "Đã import DOCX. Văn bản sẽ được publish nếu đủ metadata, hoặc chuyển sang review nếu thiếu trường bắt buộc.",
       "fields": {
         "title": "Tiêu đề",
         "document_number": "Số hiệu",
@@ -200,6 +227,7 @@
     "users": {
       "title": "Quản lý người dùng",
       "add_user": "Thêm người dùng",
+      "search": "Tìm người dùng...",
       "username": "Tên đăng nhập",
       "role": "Vai trò",
       "created": "Ngày tạo",
@@ -211,11 +239,18 @@
       "active": "Active",
       "locked": "Locked",
       "password": "Mật khẩu",
+      "password_optional": "Mật khẩu (tùy chọn)",
+      "keep_password": "Để trống để giữ mật khẩu hiện tại",
+      "username_required": "Cần nhập tên đăng nhập.",
+      "password_required": "Cần nhập mật khẩu.",
+      "password_min": "Mật khẩu tối thiểu 6 ký tự.",
+      "load_error": "Không thể tải danh sách người dùng.",
       "save": "Lưu",
       "cancel": "Hủy",
       "user_added": "Đã thêm người dùng.",
       "user_updated": "Đã cập nhật người dùng.",
-      "no_users": "Chưa có người dùng."
+      "no_users": "Chưa có người dùng.",
+      "cannot_change_own_role": "Bạn không thể thay đổi vai trò của chính mình."
     }
   },
   "validity": {

@@ -41,6 +41,14 @@
   font-size: 20px;
 }
 
+.logo-image {
+  width: 78px;
+  height: 38px;
+  object-fit: contain;
+  display: block;
+  flex-shrink: 0;
+}
+
 .logo-text {
   display: flex;
   flex-direction: column;
@@ -118,6 +126,21 @@
   font-size: 13px;
   font-weight: 600;
   padding: 6px 10px;
+}
+
+.guest-auth-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.guest-label {
+  padding: 6px 10px;
+  border-radius: var(--radius-full);
+  background: var(--bg-secondary);
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-weight: 600;
 }
 
 /* Avatar */

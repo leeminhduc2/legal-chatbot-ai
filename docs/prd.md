@@ -161,7 +161,7 @@ Lý do: sản phẩm có phân quyền admin/người dùng rõ ràng và cần 
 - Hệ thống không crawl theo số hiệu từ `wsvbpl.moj.gov.vn`/`vbpl.vn` trong MVP.
 - Hệ thống lưu file gốc, metadata do admin nhập hoặc metadata trích xuất được từ DOCX, dữ liệu chuẩn hóa, trạng thái pipeline và audit record.
 - Admin có thể nhập thủ công quan hệ văn bản như sửa đổi, thay thế, bãi bỏ nếu có nguồn kiểm chứng.
-- Admin phải review trước khi publish.
+- Hệ thống auto-publish sau upload khi metadata bắt buộc đầy đủ và `validity_status != unknown`; nếu thiếu thì đưa vào hàng `ready_for_review`.
 
 Lý do: chất lượng dữ liệu pháp luật quyết định chất lượng retrieval và câu trả lời.
 
@@ -199,7 +199,6 @@ Node trung tâm là `Document`. Metadata tối thiểu của `Document` gồm:
 
 - `document_id`: định danh nội bộ ổn định.
 - `source_system`: nguồn dữ liệu, mặc định là `admin_upload`.
-- `source_url`: URL nguồn nếu admin nhập, có thể null.
 - `title`: tên đầy đủ của văn bản.
 - `document_number`: số hiệu văn bản.
 - `sector`: ngành.
@@ -289,7 +288,6 @@ Metadata tối thiểu của mỗi vector record:
 - `document_title`: tên văn bản.
 - `document_type`: loại văn bản.
 - `source_system`: nguồn dữ liệu, mặc định là `admin_upload`.
-- `source_url`: URL nguồn nếu admin nhập, có thể null.
 - `sector`: ngành.
 - `domain`: lĩnh vực.
 - `issuing_body`: cơ quan ban hành.
@@ -475,15 +473,15 @@ Các phần sau không nằm trong MVP 1 tuần:
 | Admin Console                              User: admin     |
 +------------------------------------------------------------+
 | Upload van ban .docx: [Choose file] [Import]                |
-| Metadata: so hieu, ten van ban, hieu luc, source URL...      |
+| Metadata: so hieu, ten van ban, loai, co quan, ngay hieu luc |
 | Relations: optional, admin-curated                           |
 +------------------------------------------------------------+
 | Pipeline                                                   |
-| pending -> uploaded -> parsed -> chunked -> indexed          |
-| ready_for_review -> published                              |
+| pending -> uploaded -> parsed -> chunked                    |
+| published or ready_for_review                               |
 +------------------------------------------------------------+
-| Review Metadata                                             |
-| [Publish] [Rollback] [Mark failed]                          |
+| Published documents | Ready for review                      |
+| [Edit + Reindex]    | [Publish when complete]               |
 +------------------------------------------------------------+
 ```
 

@@ -24,8 +24,31 @@ STATUS_UPLOADED = "uploaded"
 STATUS_PARSED = "parsed"
 STATUS_CHUNKED = "chunked"
 STATUS_READY_FOR_REVIEW = "ready_for_review"
+STATUS_PUBLISHED = "published"
 STATUS_FAILED = "failed"
 VALIDITY_UNKNOWN = "unknown"
+REQUIRED_PUBLISH_FIELDS = (
+    "title",
+    "document_number",
+    "document_type",
+    "issuing_body",
+    "issued_date",
+    "effective_date",
+    "validity_status",
+)
+METADATA_UPDATE_FIELDS = {
+    "document_number",
+    "title",
+    "source_url",
+    "issuing_body",
+    "signer_title",
+    "signer_name",
+    "document_type",
+    "issued_date",
+    "effective_date",
+    "expiry_date",
+    "validity_status",
+}
 
 
 class DocumentImportError(Exception):
@@ -85,7 +108,6 @@ class DocumentImportService:
             input_json={
                 "document_number": optional_str(form_data.get("document_number")),
                 "title": optional_str(form_data.get("title")),
-                "source_url": optional_str(form_data.get("source_url")),
                 "issued_date": optional_str(form_data.get("issued_date")),
                 "effective_date": optional_str(form_data.get("effective_date")),
                 "expiry_date": optional_str(form_data.get("expiry_date")),
@@ -231,6 +253,17 @@ class DocumentImportService:
                     "import_batch_id": import_batch_id,
                 },
             )
+            publish_blockers = get_publish_blockers(
+                {
+                    "title": metadata.title,
+                    "document_number": metadata.document_number,
+                    "document_type": metadata.document_type,
+                    "issuing_body": metadata.issuing_body,
+                    "issued_date": metadata.issued_date,
+                    "effective_date": metadata.effective_date,
+                    "validity_status": metadata.validity_status,
+                }
+            )
 
             return {
                 "document_id": document_id,
@@ -238,6 +271,8 @@ class DocumentImportService:
                 "import_batch_id": import_batch_id,
                 "pipeline_run_id": pipeline_run_id,
                 "status": STATUS_READY_FOR_REVIEW,
+                "publish_blockers": publish_blockers,
+                "is_publishable": not publish_blockers,
                 "document_number": metadata.document_number,
                 "title": metadata.title,
                 "raw_docx_path": str(raw_docx_path),
@@ -263,7 +298,7 @@ class DocumentImportService:
             )
             raise
 
-    def list_documents(self) -> list[dict[str, Any]]:
+    def list_documents(self, status_filter: str | None = None) -> list[dict[str, Any]]:
         with get_connection(self.db_path) as connection:
             rows = connection.execute(
                 """
@@ -272,7 +307,9 @@ class DocumentImportService:
                     dv.version AS latest_version,
                     dv.status AS latest_status,
                     dv.import_batch_id AS latest_import_batch_id,
-                    dv.chunk_json_path AS latest_chunk_json_path
+                    dv.chunk_json_path AS latest_chunk_json_path,
+                    dv.metadata_json AS latest_metadata_json,
+                    av.chunk_json_path AS active_chunk_json_path
                 FROM document_registry dr
                 LEFT JOIN document_versions dv
                     ON dv.document_id = dr.document_id
@@ -281,6 +318,9 @@ class DocumentImportService:
                        FROM document_versions
                        WHERE document_id = dr.document_id
                    )
+                LEFT JOIN document_versions av
+                    ON av.document_id = dr.document_id
+                   AND av.version = dr.active_version
                 WHERE dr.is_deleted = 0
                 ORDER BY dr.updated_at DESC
                 """
@@ -288,11 +328,30 @@ class DocumentImportService:
         documents = []
         for row in rows:
             document = dict(row)
-            metadata_json = parse_json(document.get("raw_metadata_json"))
-            chunk_json_path = document.get("latest_chunk_json_path")
+            if status_filter == "published" and not document.get("is_published"):
+                continue
+            if status_filter == STATUS_READY_FOR_REVIEW and document.get("latest_status") != STATUS_READY_FOR_REVIEW:
+                continue
+
+            latest_metadata = parse_json(document.get("latest_metadata_json"))
+            if status_filter == STATUS_READY_FOR_REVIEW:
+                overlay_metadata(document, latest_metadata)
+
+            metadata_json = latest_metadata or parse_json(document.get("raw_metadata_json"))
+            chunk_json_path = (
+                document.get("active_chunk_json_path")
+                if status_filter == "published"
+                else document.get("latest_chunk_json_path")
+            )
             document["chunk_count"] = count_chunks(Path(chunk_json_path)) if chunk_json_path else 0
             document["needs_review"] = bool(metadata_json.get("needs_review"))
             document["needs_review_fields"] = metadata_json.get("needs_review_fields", [])
+            document["needs_republish"] = bool(metadata_json.get("needs_republish"))
+            document["last_publish_error"] = metadata_json.get("last_publish_error")
+            document["publish_blockers"] = get_publish_blockers(
+                {**document, **metadata_json}
+            )
+            document["is_publishable"] = not document["publish_blockers"]
             documents.append(document)
         return documents
 
@@ -300,6 +359,7 @@ class DocumentImportService:
         self,
         document_id: str,
         chunk_preview_limit: int = 5,
+        scope: str = "latest",
     ) -> dict[str, Any] | None:
         with get_connection(self.db_path) as connection:
             registry = row_to_dict(
@@ -313,16 +373,20 @@ class DocumentImportService:
             if registry.get("is_deleted"):
                 return None
 
+            version_where = "ORDER BY version DESC LIMIT 1"
+            params: tuple[Any, ...] = (document_id,)
+            if scope == "active" and registry.get("active_version"):
+                version_where = "AND version = ? LIMIT 1"
+                params = (document_id, registry["active_version"])
             version = row_to_dict(
                 connection.execute(
-                    """
+                    f"""
                     SELECT *
                     FROM document_versions
                     WHERE document_id = ?
-                    ORDER BY version DESC
-                    LIMIT 1
+                    {version_where}
                     """,
-                    (document_id,),
+                    params,
                 ).fetchone()
             )
             relations = [
@@ -363,8 +427,12 @@ class DocumentImportService:
             )
 
         metadata_json = parse_json(version.get("metadata_json") if version else None)
+        document = dict(registry)
+        if scope != "active":
+            overlay_metadata(document, metadata_json)
+        publish_blockers = get_publish_blockers({**document, **metadata_json})
         return {
-            "document": registry,
+            "document": document,
             "version": version,
             "relations": relations,
             "pipeline_events": events,
@@ -373,6 +441,10 @@ class DocumentImportService:
             "chunk_count": len(chunks),
             "needs_review": bool(metadata_json.get("needs_review")),
             "needs_review_fields": metadata_json.get("needs_review_fields", []),
+            "needs_republish": bool(metadata_json.get("needs_republish")),
+            "last_publish_error": metadata_json.get("last_publish_error"),
+            "publish_blockers": publish_blockers,
+            "is_publishable": not publish_blockers,
         }
 
     def list_pipeline_runs(self) -> list[dict[str, Any]]:
@@ -430,24 +502,194 @@ class DocumentImportService:
         path = Path(row["raw_docx_path"])
         return path.resolve() if path.exists() else None
 
+    def mark_latest_version_needs_republish(
+        self,
+        document_id: str,
+        message: str,
+        details: dict[str, Any] | None = None,
+    ) -> None:
+        with get_connection(self.db_path) as connection:
+            version = self._get_latest_version(connection, document_id)
+            if version is None:
+                return
+            metadata_json = parse_json(version.get("metadata_json"))
+            metadata_json["needs_republish"] = True
+            metadata_json["last_publish_error"] = {
+                "message": message,
+                "details": details or {},
+                "at": utc_now_iso(),
+            }
+            connection.execute(
+                """
+                UPDATE document_versions
+                SET metadata_json = ?, status = ?
+                WHERE id = ?
+                """,
+                (
+                    json.dumps(metadata_json, ensure_ascii=False),
+                    STATUS_READY_FOR_REVIEW,
+                    version["id"],
+                ),
+            )
+            connection.commit()
+
+    def _ensure_editable_latest_version(
+        self,
+        connection,
+        document_id: str,
+    ) -> tuple[dict[str, Any], dict[str, Any]]:
+        registry = row_to_dict(
+            connection.execute(
+                "SELECT * FROM document_registry WHERE document_id = ? AND is_deleted = 0",
+                (document_id,),
+            ).fetchone()
+        )
+        if registry is None:
+            raise DocumentImportError("DOCUMENT_NOT_FOUND", "Document not found.", 404)
+        latest = self._get_latest_version(connection, document_id)
+        if latest is None:
+            raise DocumentImportError("DOCUMENT_NOT_FOUND", "Document not found.", 404)
+
+        if (
+            registry.get("is_published")
+            and int(latest.get("version") or 0) == int(registry.get("active_version") or 0)
+            and latest.get("status") == STATUS_PUBLISHED
+        ):
+            latest = self._clone_active_version_for_edit(connection, registry, latest)
+        return registry, latest
+
+    def _get_latest_version(self, connection, document_id: str) -> dict[str, Any] | None:
+        return row_to_dict(
+            connection.execute(
+                """
+                SELECT *
+                FROM document_versions
+                WHERE document_id = ?
+                ORDER BY version DESC
+                LIMIT 1
+                """,
+                (document_id,),
+            ).fetchone()
+        )
+
+    def _clone_active_version_for_edit(
+        self,
+        connection,
+        registry: dict[str, Any],
+        active_version: dict[str, Any],
+    ) -> dict[str, Any]:
+        document_id = registry["document_id"]
+        now = utc_now_iso()
+        next_version_row = connection.execute(
+            """
+            SELECT COALESCE(MAX(version), 0) + 1 AS next_version
+            FROM document_versions
+            WHERE document_id = ?
+            """,
+            (document_id,),
+        ).fetchone()
+        version = int(next_version_row["next_version"])
+        import_batch_id = str(uuid.uuid4())
+        metadata_json = parse_json(active_version.get("metadata_json"))
+        metadata_json.update(
+            {
+                "version": version,
+                "import_batch_id": import_batch_id,
+                "published_version": version,
+                "is_published": False,
+                "needs_republish": True,
+                "last_publish_error": None,
+            }
+        )
+        chunks = normalize_chunks_for_version(
+            load_chunks(Path(active_version["chunk_json_path"])),
+            metadata_json,
+            {"version": version, "import_batch_id": import_batch_id},
+        )
+        chunk_json_path = self._write_chunks(
+            document_id=document_id,
+            import_batch_id=import_batch_id,
+            chunks=chunks,
+        )
+        version_id = str(uuid.uuid4())
+        connection.execute(
+            """
+            INSERT INTO document_versions (
+                id, document_id, version, import_batch_id, raw_docx_path,
+                preprocessed_text_path, chunk_json_path, metadata_json,
+                status, created_at
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                version_id,
+                document_id,
+                version,
+                import_batch_id,
+                active_version.get("raw_docx_path"),
+                active_version.get("preprocessed_text_path"),
+                str(chunk_json_path),
+                json.dumps(metadata_json, ensure_ascii=False),
+                STATUS_READY_FOR_REVIEW,
+                now,
+            ),
+        )
+        active_relations = connection.execute(
+            """
+            SELECT *
+            FROM document_relations
+            WHERE import_batch_id = ?
+            ORDER BY created_at ASC
+            """,
+            (active_version["import_batch_id"],),
+        ).fetchall()
+        for relation in active_relations:
+            connection.execute(
+                """
+                INSERT INTO document_relations (
+                    id, source_document_id, target_document_id,
+                    target_document_number, relation_type, source_text,
+                    import_batch_id, is_published, created_at
+                )
+                VALUES (?, ?, ?, ?, ?, ?, ?, 0, ?)
+                """,
+                (
+                    str(uuid.uuid4()),
+                    relation["source_document_id"],
+                    relation["target_document_id"],
+                    relation["target_document_number"],
+                    relation["relation_type"],
+                    relation["source_text"],
+                    import_batch_id,
+                    now,
+                ),
+            )
+        return {
+            **active_version,
+            "id": version_id,
+            "version": version,
+            "import_batch_id": import_batch_id,
+            "chunk_json_path": str(chunk_json_path),
+            "metadata_json": json.dumps(metadata_json, ensure_ascii=False),
+            "status": STATUS_READY_FOR_REVIEW,
+            "created_at": now,
+        }
+
+    def _rewrite_version_chunks_metadata(
+        self,
+        version: dict[str, Any],
+        metadata_json: dict[str, Any],
+    ) -> None:
+        chunk_path = Path(version["chunk_json_path"])
+        chunks = normalize_chunks_for_version(load_chunks(chunk_path), metadata_json, version)
+        chunk_path.write_text(json.dumps(chunks, ensure_ascii=False, indent=2), encoding="utf-8")
+
     def update_document_metadata(
         self,
         document_id: str,
         payload: dict[str, Any],
     ) -> dict[str, Any]:
-        allowed_fields = {
-            "document_number",
-            "title",
-            "source_url",
-            "issuing_body",
-            "signer_title",
-            "signer_name",
-            "document_type",
-            "issued_date",
-            "effective_date",
-            "expiry_date",
-            "validity_status",
-        }
+        allowed_fields = METADATA_UPDATE_FIELDS - {"source_url"}
         updates = {key: optional_str(payload.get(key)) for key in allowed_fields if key in payload}
         if not updates:
             raise DocumentImportError(
@@ -457,42 +699,14 @@ class DocumentImportService:
 
         now = utc_now_iso()
         with get_connection(self.db_path) as connection:
-            registry = row_to_dict(
-                connection.execute(
-                    "SELECT * FROM document_registry WHERE document_id = ? AND is_deleted = 0",
-                    (document_id,),
-                ).fetchone()
-            )
-            if registry is None:
-                raise DocumentImportError("DOCUMENT_NOT_FOUND", "Document not found.", 404)
-            version = row_to_dict(
-                connection.execute(
-                    """
-                    SELECT *
-                    FROM document_versions
-                    WHERE document_id = ?
-                    ORDER BY version DESC
-                    LIMIT 1
-                    """,
-                    (document_id,),
-                ).fetchone()
-            )
-
-            assignments = ", ".join(f"{field} = ?" for field in updates)
-            connection.execute(
-                f"""
-                UPDATE document_registry
-                SET {assignments}, updated_at = ?
-                WHERE document_id = ?
-                """,
-                (*updates.values(), now, document_id),
-            )
+            registry, version = self._ensure_editable_latest_version(connection, document_id)
             if version is not None:
                 metadata_json = parse_json(version.get("metadata_json"))
                 metadata_json.update(updates)
-                metadata_json["needs_review"] = False
-                metadata_json["needs_review_fields"] = []
                 metadata_json["needs_republish"] = bool(registry.get("is_published"))
+                blockers = get_publish_blockers(metadata_json)
+                metadata_json["needs_review"] = bool(blockers)
+                metadata_json["needs_review_fields"] = blockers
                 connection.execute(
                     """
                     UPDATE document_versions
@@ -505,14 +719,22 @@ class DocumentImportService:
                         version["id"],
                     ),
                 )
-                connection.execute(
-                    """
-                    UPDATE document_registry
-                    SET raw_metadata_json = ?, is_published = 0, active_version = NULL
-                    WHERE document_id = ?
-                    """,
-                    (json.dumps(metadata_json, ensure_ascii=False), document_id),
-                )
+                self._rewrite_version_chunks_metadata(version, metadata_json)
+                if not registry.get("is_published"):
+                    assignments = ", ".join(f"{field} = ?" for field in updates)
+                    connection.execute(
+                        f"""
+                        UPDATE document_registry
+                        SET {assignments}, raw_metadata_json = ?, updated_at = ?
+                        WHERE document_id = ?
+                        """,
+                        (
+                            *updates.values(),
+                            json.dumps(metadata_json, ensure_ascii=False),
+                            now,
+                            document_id,
+                        ),
+                    )
             connection.commit()
         detail = self.get_document_detail(document_id)
         assert detail is not None
@@ -526,31 +748,13 @@ class DocumentImportService:
         validate_chunks(chunks)
         now = utc_now_iso()
         with get_connection(self.db_path) as connection:
-            registry = row_to_dict(
-                connection.execute(
-                    "SELECT * FROM document_registry WHERE document_id = ? AND is_deleted = 0",
-                    (document_id,),
-                ).fetchone()
-            )
-            version = row_to_dict(
-                connection.execute(
-                    """
-                    SELECT *
-                    FROM document_versions
-                    WHERE document_id = ?
-                    ORDER BY version DESC
-                    LIMIT 1
-                    """,
-                    (document_id,),
-                ).fetchone()
-            )
-            if registry is None or version is None:
-                raise DocumentImportError("DOCUMENT_NOT_FOUND", "Document not found.", 404)
+            registry, version = self._ensure_editable_latest_version(connection, document_id)
             chunk_path = Path(version["chunk_json_path"])
             chunk_path.parent.mkdir(parents=True, exist_ok=True)
-            chunk_path.write_text(json.dumps(chunks, ensure_ascii=False, indent=2), encoding="utf-8")
             metadata_json = parse_json(version.get("metadata_json"))
             metadata_json["needs_republish"] = bool(registry.get("is_published"))
+            chunks = normalize_chunks_for_version(chunks, metadata_json, version)
+            chunk_path.write_text(json.dumps(chunks, ensure_ascii=False, indent=2), encoding="utf-8")
             connection.execute(
                 """
                 UPDATE document_versions
@@ -563,14 +767,15 @@ class DocumentImportService:
                     version["id"],
                 ),
             )
-            connection.execute(
-                """
-                UPDATE document_registry
-                SET is_published = 0, active_version = NULL, updated_at = ?
-                WHERE document_id = ?
-                """,
-                (now, document_id),
-            )
+            if not registry.get("is_published"):
+                connection.execute(
+                    """
+                    UPDATE document_registry
+                    SET raw_metadata_json = ?, updated_at = ?
+                    WHERE document_id = ?
+                    """,
+                    (json.dumps(metadata_json, ensure_ascii=False), now, document_id),
+                )
             connection.commit()
         detail = self.get_document_detail(document_id)
         assert detail is not None
@@ -594,29 +799,10 @@ class DocumentImportService:
 
         now = utc_now_iso()
         with get_connection(self.db_path) as connection:
-            registry = row_to_dict(
-                connection.execute(
-                    "SELECT * FROM document_registry WHERE document_id = ? AND is_deleted = 0",
-                    (document_id,),
-                ).fetchone()
-            )
-            version = row_to_dict(
-                connection.execute(
-                    """
-                    SELECT *
-                    FROM document_versions
-                    WHERE document_id = ?
-                    ORDER BY version DESC
-                    LIMIT 1
-                    """,
-                    (document_id,),
-                ).fetchone()
-            )
-            if registry is None or version is None:
-                raise DocumentImportError("DOCUMENT_NOT_FOUND", "Document not found.", 404)
+            registry, version = self._ensure_editable_latest_version(connection, document_id)
             connection.execute(
-                "DELETE FROM document_relations WHERE source_document_id = ?",
-                (document_id,),
+                "DELETE FROM document_relations WHERE import_batch_id = ?",
+                (version["import_batch_id"],),
             )
             for relation in relations:
                 connection.execute(
@@ -637,8 +823,8 @@ class DocumentImportService:
                         optional_str(relation.get("source_text")),
                         version["import_batch_id"],
                         now,
-                    ),
-                )
+                ),
+            )
             metadata_json = parse_json(version.get("metadata_json"))
             metadata_json["relations_unavailable"] = not bool(relations)
             metadata_json["needs_republish"] = bool(registry.get("is_published"))
@@ -654,14 +840,15 @@ class DocumentImportService:
                     version["id"],
                 ),
             )
-            connection.execute(
-                """
-                UPDATE document_registry
-                SET is_published = 0, active_version = NULL, updated_at = ?
-                WHERE document_id = ?
-                """,
-                (now, document_id),
-            )
+            if not registry.get("is_published"):
+                connection.execute(
+                    """
+                    UPDATE document_registry
+                    SET raw_metadata_json = ?, updated_at = ?
+                    WHERE document_id = ?
+                    """,
+                    (json.dumps(metadata_json, ensure_ascii=False), now, document_id),
+                )
             connection.commit()
         detail = self.get_document_detail(document_id)
         assert detail is not None
@@ -675,7 +862,6 @@ class DocumentImportService:
         paragraphs: list[str],
         import_batch_id: str,
     ) -> ImportMetadata:
-        is_legal_document = bool_from_form(form_data.get("is_legal_document"), True)
         llm_metadata = infer_metadata_with_deepseek(
             config=self.config,
             text=text,
@@ -685,46 +871,28 @@ class DocumentImportService:
             **metadata_hints,
             **{key: value for key, value in llm_metadata.items() if value},
         }
-        vbpl_metadata = {}
-        hinted_number = (
-            optional_str(form_data.get("document_number"))
-            or optional_str(merged_hints.get("document_number"))
-        )
-        if is_legal_document and hinted_number and self.config.app_env != "test":
-            vbpl_metadata = crawl_vbpl_metadata(
-                document_number=hinted_number,
-                enabled=self.config.vbpl_crawl_enabled,
-            )
-
         extraction_sources = {
             "regex": metadata_hints,
             "llm": llm_metadata,
-            "vbpl": vbpl_metadata,
-            "is_legal_document": is_legal_document,
         }
         document_number = first_present(
             form_data.get("document_number"),
-            vbpl_metadata.get("document_number"),
             merged_hints.get("document_number"),
         )
         title = first_present(
             form_data.get("title"),
-            vbpl_metadata.get("title"),
             merged_hints.get("title"),
         )
         issued_date = first_present(
             form_data.get("issued_date"),
-            vbpl_metadata.get("issued_date"),
             merged_hints.get("issued_date"),
         )
         effective_date = first_present(
             form_data.get("effective_date"),
-            vbpl_metadata.get("effective_date"),
             merged_hints.get("effective_date"),
         )
         issuing_body = first_present(
             form_data.get("issuing_body"),
-            vbpl_metadata.get("issuing_body"),
             merged_hints.get("issuing_body"),
         )
         signer_title = first_present(
@@ -737,7 +905,6 @@ class DocumentImportService:
         )
         document_type = first_present(
             form_data.get("document_type"),
-            vbpl_metadata.get("document_type"),
             merged_hints.get("document_type"),
         )
 
@@ -749,9 +916,11 @@ class DocumentImportService:
             title = make_fallback_title(paragraphs, import_batch_id)
             needs_review_fields.append("title")
         for field_name, value in [
+            ("document_type", document_type),
             ("issuing_body", issuing_body),
             ("issued_date", issued_date),
             ("effective_date", effective_date),
+            ("validity_status", optional_str(form_data.get("validity_status"))),
             ("signer_title", signer_title),
             ("signer_name", signer_name),
         ]:
@@ -768,19 +937,18 @@ class DocumentImportService:
         relations = parse_relations_json(relations_raw)
         if not relations:
             relations = normalize_inferred_relations(
-                vbpl_metadata.get("relations") or llm_metadata.get("relations") or []
+                llm_metadata.get("relations") or []
             )
         return ImportMetadata(
             document_number=document_number,
             title=title,
-            source_url=optional_str(form_data.get("source_url")),
+            source_url=None,
             issuing_body=issuing_body,
             issued_date=issued_date,
             effective_date=effective_date,
             expiry_date=optional_str(form_data.get("expiry_date")),
             validity_status=optional_str(form_data.get("validity_status"))
-            or optional_str(vbpl_metadata.get("validity_status"))
-            or "active",
+            or VALIDITY_UNKNOWN,
             signer_title=signer_title,
             signer_name=signer_name,
             document_type=document_type,
@@ -1197,6 +1365,46 @@ def parse_json(raw_value: Any) -> dict[str, Any]:
     return parsed if isinstance(parsed, dict) else {}
 
 
+def overlay_metadata(document: dict[str, Any], metadata: dict[str, Any]) -> None:
+    for field in METADATA_UPDATE_FIELDS - {"source_url"}:
+        if field in metadata:
+            document[field] = metadata.get(field)
+
+
+def get_publish_blockers(metadata: dict[str, Any]) -> list[str]:
+    blockers = [
+        field
+        for field in REQUIRED_PUBLISH_FIELDS
+        if not optional_str(metadata.get(field))
+    ]
+    if optional_str(metadata.get("validity_status")) == VALIDITY_UNKNOWN:
+        blockers.append("validity_status")
+    return sorted(set(blockers))
+
+
+def normalize_chunks_for_version(
+    chunks: list[dict[str, Any]],
+    metadata: dict[str, Any],
+    version: dict[str, Any],
+) -> list[dict[str, Any]]:
+    normalized = []
+    for chunk in chunks:
+        updated = dict(chunk)
+        updated["import_batch_id"] = str(version["import_batch_id"])
+        updated["is_published"] = False
+        updated["published_version"] = int(version["version"])
+        updated["document_number"] = metadata.get("document_number") or updated.get("document_number")
+        updated["document_title"] = metadata.get("title") or updated.get("document_title")
+        updated["document_type"] = metadata.get("document_type") or updated.get("document_type")
+        updated["issuing_body"] = metadata.get("issuing_body") or updated.get("issuing_body")
+        updated["issued_date"] = metadata.get("issued_date") or updated.get("issued_date")
+        updated["effective_date"] = metadata.get("effective_date") or updated.get("effective_date")
+        updated["expiry_date"] = metadata.get("expiry_date") or updated.get("expiry_date")
+        updated["validity_status"] = metadata.get("validity_status") or updated.get("validity_status")
+        normalized.append(updated)
+    return normalized
+
+
 def make_fallback_title(paragraphs: list[str], import_batch_id: str) -> str:
     for paragraph in paragraphs[:10]:
         if paragraph.strip():
@@ -1357,89 +1565,6 @@ def extract_effective_clause_text(text: str) -> str:
         if match:
             return match.group(0).strip()[:3000]
     return ""
-
-
-def crawl_vbpl_metadata(document_number: str, enabled: bool) -> dict[str, Any]:
-    if not enabled:
-        return {}
-    try:
-        import asyncio
-        from crawl4ai import AsyncWebCrawler, BrowserConfig, CrawlerRunConfig
-    except Exception:
-        return {}
-
-    async def _crawl() -> dict[str, Any]:
-        os.environ.setdefault("CRAWL4_AI_BASE_DIRECTORY", str(Path.cwd()))
-        browser_path = Path.cwd() / ".playwright-browsers"
-        os.environ.setdefault("PLAYWRIGHT_BROWSERS_PATH", str(browser_path))
-        url = "https://vbpl.vn/van-ban/trung-uong"
-        js_code = f"""
-        (() => {{
-          const input = document.querySelector('input.ant-input');
-          if (input) {{
-            input.value = {json.dumps(document_number)};
-            input.dispatchEvent(new Event('input', {{ bubbles: true }}));
-            input.dispatchEvent(new Event('change', {{ bubbles: true }}));
-          }}
-          const numberRadio = document.querySelector('input[type="radio"][value="number"]');
-          if (numberRadio) numberRadio.click();
-          const buttons = Array.from(document.querySelectorAll('button'));
-          const search = buttons.find((button) => button.innerText.includes('Tìm kiếm')) || buttons[1];
-          if (search) search.click();
-        }})();
-        """
-        config = CrawlerRunConfig(
-            js_code=js_code,
-            wait_until="networkidle",
-            delay_before_return_html=6,
-            page_timeout=30000,
-            simulate_user=True,
-            magic=True,
-        )
-        browser_config = BrowserConfig(headless=True, enable_stealth=True)
-        async with AsyncWebCrawler(config=browser_config) as crawler:
-            result = await crawler.arun(url=url, config=config)
-        markdown = result.markdown
-        text = markdown if isinstance(markdown, str) else getattr(markdown, "raw_markdown", "")
-        return parse_vbpl_search_text(text or "", document_number)
-
-    try:
-        return asyncio.run(_crawl())
-    except Exception:
-        return {}
-
-
-def parse_vbpl_search_text(text: str, document_number: str) -> dict[str, Any]:
-    if document_number not in text:
-        return {}
-    lines = [line.strip() for line in text.splitlines() if line.strip()]
-    title = None
-    for line in lines:
-        if document_number in line and not line.lower().startswith(("pdf", "http")):
-            title = line
-            break
-    window = "\n".join(lines[max(0, lines.index(title) if title in lines else 0):])
-    issued_date = extract_labeled_display_date(window, "Ngày ban hành")
-    effective_date = extract_labeled_display_date(window, "Ngày hiệu lực")
-    status = "active" if "Còn hiệu lực" in window else None
-    return {
-        "document_number": document_number,
-        "title": title,
-        "issued_date": issued_date,
-        "effective_date": effective_date,
-        "validity_status": status,
-        "source": "vbpl",
-    }
-
-
-def extract_labeled_display_date(text: str, label: str) -> str | None:
-    match = re.search(re.escape(label) + r"\s*:\s*(\d{1,2})/(\d{1,2})/(\d{4})", text)
-    if not match:
-        match = re.search(re.escape(label) + r"\s*\n\s*(\d{1,2})/(\d{1,2})/(\d{4})", text)
-    if not match:
-        return None
-    day, month, year = match.groups()
-    return f"{int(year):04d}-{int(month):02d}-{int(day):02d}"
 
 
 def extract_effective_date(text: str) -> str | None:

@@ -84,6 +84,13 @@
   font-size: 28px;
 }
 
+.login-logo-image {
+  width: min(220px, 80%);
+  height: 96px;
+  object-fit: contain;
+  display: block;
+}
+
 .login-title {
   text-align: center;
   font-size: 1.6rem;
@@ -103,6 +110,21 @@
   font-size: 13px;
   color: var(--text-muted);
   margin: -6px 0;
+}
+
+.login-switch {
+  border: none;
+  background: transparent;
+  color: var(--accent-gold);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 0;
+  text-align: center;
+}
+
+.login-switch:hover {
+  text-decoration: underline;
 }
 
 .login-divider {

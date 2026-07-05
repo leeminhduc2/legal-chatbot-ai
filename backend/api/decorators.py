@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from functools import wraps
-from typing import Callable, TypeVar
+from typing import Any, Callable, TypeVar
 
 from flask import current_app, g, request
 
@@ -53,8 +53,16 @@ def extract_bearer_token() -> str | None:
     return token.strip()
 
 
-def error_response(code: str, message: str, status_code: int):
-    return {"error": {"code": code, "message": message}}, status_code
+def error_response(
+    code: str,
+    message: str,
+    status_code: int,
+    details: dict[str, Any] | None = None,
+):
+    error = {"code": code, "message": message}
+    if details:
+        error["details"] = details
+    return {"error": error}, status_code
 
 
 def _get_auth_service() -> AuthService:

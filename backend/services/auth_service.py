@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import hashlib
+import sqlite3
 import secrets
 import uuid
 from datetime import datetime, timedelta, timezone
@@ -13,8 +14,9 @@ from backend.models.database import get_connection, row_to_dict
 
 ROLE_ADMIN = "admin"
 ROLE_BUSINESS_USER = "business_user"
+ROLE_FREE_USER = "free_user"
 ROLE_GUEST = "guest"
-VALID_ROLES = {ROLE_ADMIN, ROLE_BUSINESS_USER, ROLE_GUEST}
+VALID_ROLES = {ROLE_ADMIN, ROLE_BUSINESS_USER, ROLE_FREE_USER, ROLE_GUEST}
 
 
 class AuthError(Exception):
@@ -31,35 +33,149 @@ class AuthService:
         self.token_ttl = timedelta(hours=token_ttl_hours)
 
     def create_user(self, username: str, password: str, role: str) -> dict[str, Any]:
+        username = normalize_username(username)
+        validate_username(username)
+        validate_password(password)
+
         if role not in VALID_ROLES:
-            raise ValueError(f"Unsupported role: {role}")
+            raise AuthError("INVALID_ROLE", f"Unsupported role: {role}", 400)
 
         now = utc_now_iso()
         user_id = str(uuid.uuid4())
         password_hash = generate_password_hash(password)
 
         with get_connection(self.db_path) as connection:
-            connection.execute(
-                """
-                INSERT INTO users (id, username, password_hash, role, is_active, created_at, updated_at)
-                VALUES (?, ?, ?, ?, 1, ?, ?)
-                """,
-                (user_id, username, password_hash, role, now, now),
-            )
-            connection.commit()
+            try:
+                connection.execute(
+                    """
+                    INSERT INTO users (id, username, password_hash, role, is_active, created_at, updated_at)
+                    VALUES (?, ?, ?, ?, 1, ?, ?)
+                    """,
+                    (user_id, username, password_hash, role, now, now),
+                )
+                connection.commit()
+            except sqlite3.IntegrityError as exc:
+                if "UNIQUE" in str(exc).upper():
+                    raise AuthError(
+                        "USERNAME_EXISTS",
+                        "Username is already registered.",
+                        409,
+                    ) from exc
+                raise
 
         user = self.get_user_by_id(user_id)
         if user is None:
             raise RuntimeError("Failed to load user after creation.")
         return sanitize_user(user)
 
+    def register_user(self, username: str, password: str) -> dict[str, Any]:
+        self.create_user(username=username, password=password, role=ROLE_FREE_USER)
+        return self.login(username=normalize_username(username), password=password)
+
+    def list_users(self) -> list[dict[str, Any]]:
+        with get_connection(self.db_path) as connection:
+            rows = connection.execute(
+                """
+                SELECT *
+                FROM users
+                ORDER BY created_at DESC, username ASC
+                """
+            ).fetchall()
+        users = []
+        for row in rows:
+            user = row_to_dict(row)
+            if user is not None:
+                users.append(sanitize_user(user))
+        return users
+
     def get_user_by_username(self, username: str) -> dict[str, Any] | None:
+        username = normalize_username(username)
         with get_connection(self.db_path) as connection:
             row = connection.execute(
                 "SELECT * FROM users WHERE username = ?",
                 (username,),
             ).fetchone()
         return row_to_dict(row)
+
+    def update_user(
+        self,
+        user_id: str,
+        updates: dict[str, Any],
+        current_user_id: str,
+    ) -> dict[str, Any]:
+        user = self.get_user_by_id(user_id)
+        if user is None:
+            raise AuthError("USER_NOT_FOUND", "User not found.", 404)
+
+        next_role = updates.get("role", user["role"])
+        if next_role not in VALID_ROLES:
+            raise AuthError("INVALID_ROLE", f"Unsupported role: {next_role}", 400)
+
+        if "is_active" in updates:
+            next_is_active = bool(updates["is_active"])
+        else:
+            next_is_active = bool(user["is_active"])
+
+        is_self = user_id == current_user_id
+        if is_self and (next_role != ROLE_ADMIN or not next_is_active):
+            raise AuthError(
+                "CANNOT_CHANGE_OWN_ADMIN",
+                "Administrators cannot lock or demote their own account.",
+                400,
+            )
+
+        removes_active_admin = (
+            user["role"] == ROLE_ADMIN
+            and bool(user["is_active"])
+            and (next_role != ROLE_ADMIN or not next_is_active)
+        )
+        if removes_active_admin and self._active_admin_count() <= 1:
+            raise AuthError(
+                "LAST_ADMIN_REQUIRED",
+                "At least one active administrator is required.",
+                400,
+            )
+
+        assignments = ["role = ?", "is_active = ?", "updated_at = ?"]
+        params: list[Any] = [next_role, 1 if next_is_active else 0, utc_now_iso()]
+        should_revoke_sessions = False
+
+        new_password = str(updates.get("password", ""))
+        if new_password:
+            validate_password(new_password)
+            assignments.append("password_hash = ?")
+            params.append(generate_password_hash(new_password))
+            should_revoke_sessions = True
+
+        if not next_is_active:
+            should_revoke_sessions = True
+
+        params.append(user_id)
+
+        with get_connection(self.db_path) as connection:
+            connection.execute(
+                f"""
+                UPDATE users
+                SET {", ".join(assignments)}
+                WHERE id = ?
+                """,
+                params,
+            )
+            if should_revoke_sessions:
+                connection.execute(
+                    """
+                    UPDATE auth_sessions
+                    SET revoked_at = ?
+                    WHERE user_id = ? AND revoked_at IS NULL
+                    """,
+                    (utc_now_iso(), user_id),
+                )
+            connection.commit()
+
+        updated_user = self.get_user_by_id(user_id)
+        if updated_user is None:
+            raise RuntimeError("Failed to load user after update.")
+        return sanitize_user(updated_user)
 
     def get_user_by_id(self, user_id: str) -> dict[str, Any] | None:
         with get_connection(self.db_path) as connection:
@@ -144,6 +260,18 @@ class AuthService:
             )
             connection.commit()
 
+    def _active_admin_count(self) -> int:
+        with get_connection(self.db_path) as connection:
+            row = connection.execute(
+                """
+                SELECT COUNT(*) AS count
+                FROM users
+                WHERE role = ? AND is_active = 1
+                """,
+                (ROLE_ADMIN,),
+            ).fetchone()
+        return int(row["count"] if row else 0)
+
 
 def hash_token(token: str) -> str:
     return hashlib.sha256(token.encode("utf-8")).hexdigest()
@@ -155,8 +283,36 @@ def sanitize_user(user: dict[str, Any]) -> dict[str, Any]:
         "username": user["username"],
         "role": user["role"],
         "is_active": bool(user["is_active"]),
+        "created_at": user.get("created_at"),
+        "updated_at": user.get("updated_at"),
     }
 
 
 def utc_now_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
+
+
+def normalize_username(username: str) -> str:
+    return str(username or "").strip()
+
+
+def validate_username(username: str) -> None:
+    if not username:
+        raise AuthError("INVALID_USERNAME", "Username is required.", 400)
+    if len(username) < 3 or len(username) > 50:
+        raise AuthError(
+            "INVALID_USERNAME",
+            "Username must be between 3 and 50 characters.",
+            400,
+        )
+
+
+def validate_password(password: str) -> None:
+    if not password:
+        raise AuthError("INVALID_PASSWORD", "Password is required.", 400)
+    if len(password) < 6:
+        raise AuthError(
+            "INVALID_PASSWORD",
+            "Password must be at least 6 characters.",
+            400,
+        )

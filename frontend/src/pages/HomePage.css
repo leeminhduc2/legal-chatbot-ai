@@ -156,6 +156,11 @@
 
 /* Guest Banner */
 .guest-banner {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  flex-wrap: wrap;
   max-width: 800px;
   margin: -32px auto 0;
   padding: 12px 24px;

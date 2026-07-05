@@ -22,14 +22,10 @@
 }
 
 .sidebar-logo {
-  width: 34px;
+  width: 44px;
   height: 34px;
-  background: var(--accent-gold);
-  border-radius: var(--radius-sm);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 18px;
+  object-fit: contain;
+  display: block;
   flex-shrink: 0;
 }
 

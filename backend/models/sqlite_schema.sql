@@ -4,7 +4,7 @@ CREATE TABLE IF NOT EXISTS users (
     id TEXT PRIMARY KEY,
     username TEXT NOT NULL UNIQUE,
     password_hash TEXT NOT NULL,
-    role TEXT NOT NULL CHECK (role IN ('admin', 'business_user', 'guest')),
+    role TEXT NOT NULL CHECK (role IN ('admin', 'business_user', 'free_user', 'guest')),
     is_active INTEGER NOT NULL DEFAULT 1 CHECK (is_active IN (0, 1)),
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL
@@ -25,6 +25,32 @@ ON auth_sessions(token_hash);
 
 CREATE INDEX IF NOT EXISTS idx_auth_sessions_user_id
 ON auth_sessions(user_id);
+
+CREATE TABLE IF NOT EXISTS chat_conversations (
+    id TEXT PRIMARY KEY,
+    user_id TEXT NOT NULL,
+    title TEXT,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    FOREIGN KEY (user_id) REFERENCES users(id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_chat_conversations_user_id
+ON chat_conversations(user_id);
+
+CREATE TABLE IF NOT EXISTS chat_messages (
+    id TEXT PRIMARY KEY,
+    conversation_id TEXT NOT NULL,
+    role TEXT NOT NULL CHECK (role IN ('user', 'assistant')),
+    content TEXT NOT NULL,
+    citations_json TEXT,
+    confidence REAL,
+    created_at TEXT NOT NULL,
+    FOREIGN KEY (conversation_id) REFERENCES chat_conversations(id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_chat_messages_conversation_id
+ON chat_messages(conversation_id);
 
 CREATE TABLE IF NOT EXISTS document_registry (
     document_id TEXT PRIMARY KEY,

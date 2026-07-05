@@ -49,13 +49,11 @@ hints, then calls DeepSeek with an OpenAI-compatible client when
 ```env
 DEEPSEEK_API_KEY=replace-with-your-deepseek-key
 DEEPSEEK_MODEL_METADATA=deepseek-v4-flash
-VBPL_CRAWL_ENABLED=true
-CRAWL4_AI_BASE_DIRECTORY=.crawl4ai
-PLAYWRIGHT_BROWSERS_PATH=.playwright-browsers
 ```
 
-When the upload checkbox `Van ban phap luat` is enabled, VBPL enrichment is
-best-effort. Missing fields are imported anyway and marked for admin review.
+DOCX import uses the uploaded file plus deterministic/LLM metadata hints only.
+It does not crawl `vbpl.vn`; missing fields are imported anyway and marked for
+admin review.
 
 ## Local Elasticsearch config
 

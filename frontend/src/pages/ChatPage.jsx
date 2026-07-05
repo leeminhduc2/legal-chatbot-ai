@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import toast from 'react-hot-toast';
 import { useAuth } from '../contexts/AuthContext';
 import { api } from '../services/api';
 import ChatMessage from '../components/ChatMessage';
@@ -9,21 +10,31 @@ import './ChatPage.css';
 
 export default function ChatPage() {
   const { t } = useTranslation();
-  const { user, isAdmin } = useAuth();
+  const { isAdmin, isAuthenticated } = useAuth();
   const [searchParams] = useSearchParams();
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [conversations, setConversations] = useState([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
   const [activeConv, setActiveConv] = useState(null);
   const messagesEndRef = useRef(null);
   const inputRef = useRef(null);
+  const initialQuerySent = useRef(false);
 
-  /* Handle initial query from home page */
+  useEffect(() => {
+    if (isAuthenticated) {
+      loadConversations();
+    } else {
+      setConversations([]);
+    }
+  }, [isAuthenticated]);
+
   useEffect(() => {
     const q = searchParams.get('q');
-    if (q && messages.length === 0) {
+    if (q && !initialQuerySent.current) {
+      initialQuerySent.current = true;
       sendMessage(q);
     }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
@@ -31,6 +42,33 @@ export default function ChatPage() {
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, isTyping]);
+
+  const loadConversations = async () => {
+    setHistoryLoading(true);
+    try {
+      const res = await api('/chat/conversations');
+      const data = await res.json();
+      setConversations(data.conversations || []);
+    } catch (err) {
+      toast.error(err.message || t('chat.history_error'));
+    } finally {
+      setHistoryLoading(false);
+    }
+  };
+
+  const openConversation = async (conversationId) => {
+    setHistoryLoading(true);
+    try {
+      const res = await api(`/chat/conversations/${conversationId}`);
+      const data = await res.json();
+      setActiveConv(data.conversation?.id || conversationId);
+      setMessages(data.messages || []);
+    } catch (err) {
+      toast.error(err.message || t('chat.history_error'));
+    } finally {
+      setHistoryLoading(false);
+    }
+  };
 
   const sendMessage = async (text) => {
     const content = text || input.trim();
@@ -53,33 +91,26 @@ export default function ChatPage() {
       const data = await res.json();
       const aiMsg = {
         role: 'assistant',
-        content: data.answer || data.response || 'No response.',
+        content: data.answer || data.response || t('chat.no_response'),
         citations: data.citations || [],
         confidence: data.confidence ?? null,
       };
       setMessages((prev) => [...prev, aiMsg]);
-    } catch {
-      /* If no chat endpoint, show a mock response */
-      const mockMsg = {
-        role: 'assistant',
-        content: `Theo quy định hiện hành, doanh nghiệp bảo hiểm phải đáp ứng các điều kiện về vốn pháp định, cơ cấu tổ chức và người quản trị. Cụ thể, vốn điều lệ tối thiểu đối với bảo hiểm phi nhân thọ là 400 tỷ đồng, đối với bảo hiểm nhân thọ là 750 tỷ đồng, và tái bảo hiểm là 500 tỷ đồng. Doanh nghiệp phải có phương án kinh doanh khả thi và hệ thống công nghệ thông tin đáp ứng yêu cầu quản lý.`,
-        citations: [
-          {
-            document_name: 'Luật Kinh doanh bảo hiểm',
-            document_number: '08/2022/QH15',
-            article: 'Điều 64',
-            is_active: true,
-          },
-          {
-            document_name: 'Nghị định 46/2023/NĐ-CP',
-            document_number: '46/2023/NĐ-CP',
-            article: 'Điều 35, khoản 2',
-            is_active: true,
-          },
-        ],
-        confidence: 92,
-      };
-      setMessages((prev) => [...prev, mockMsg]);
+      if (data.conversation_id) {
+        setActiveConv(data.conversation_id);
+        loadConversations();
+      }
+    } catch (err) {
+      toast.error(err.message || t('chat.send_error'));
+      setMessages((prev) => [
+        ...prev,
+        {
+          role: 'assistant',
+          content: t('chat.send_error'),
+          citations: [],
+          confidence: null,
+        },
+      ]);
     } finally {
       setIsTyping(false);
     }
@@ -102,7 +133,6 @@ export default function ChatPage() {
     <div className="chat-layout">
       {showHeader && <Header />}
       <div className="chat-container">
-        {/* Sidebar */}
         <aside className={`chat-sidebar ${sidebarOpen ? 'open' : 'closed'}`}>
           <button className="btn btn-secondary w-full" onClick={handleNewChat}>
             + {t('chat.new_chat')}
@@ -110,7 +140,18 @@ export default function ChatPage() {
 
           <div className="chat-history-section">
             <h4 className="chat-history-title">{t('chat.history')}</h4>
-            {conversations.length === 0 ? (
+            {!isAuthenticated ? (
+              <div className="chat-history-login">
+                <p className="text-muted text-sm">{t('chat.login_for_history')}</p>
+                <Link to="/login" className="btn btn-primary btn-sm">
+                  {t('nav.login')}
+                </Link>
+              </div>
+            ) : historyLoading && conversations.length === 0 ? (
+              <p className="text-muted text-sm" style={{ padding: '8px 0' }}>
+                {t('chat.history_loading')}
+              </p>
+            ) : conversations.length === 0 ? (
               <p className="text-muted text-sm" style={{ padding: '8px 0' }}>
                 {t('chat.empty')}
               </p>
@@ -119,40 +160,40 @@ export default function ChatPage() {
                 <button
                   key={conv.id}
                   className={`history-item ${activeConv === conv.id ? 'active' : ''}`}
-                  onClick={() => setActiveConv(conv.id)}
+                  onClick={() => openConversation(conv.id)}
                 >
-                  💬 {conv.title || 'Conversation'}
+                  {conv.title || 'Conversation'}
                 </button>
               ))
             )}
           </div>
         </aside>
 
-        {/* Chat Area */}
         <div className="chat-main">
           <button
             className="sidebar-toggle btn-icon"
             onClick={() => setSidebarOpen(!sidebarOpen)}
+            type="button"
           >
-            {sidebarOpen ? '◀' : '▶'}
+            {sidebarOpen ? '<' : '>'}
           </button>
 
           <div className="chat-messages">
             {messages.length === 0 && (
               <div className="chat-empty-state">
-                <div className="chat-empty-icon">⚖️</div>
+                <div className="chat-empty-icon">AI</div>
                 <h2>{t('chat.empty')}</h2>
                 <p className="text-muted">{t('chat.empty_desc')}</p>
               </div>
             )}
 
             {messages.map((msg, i) => (
-              <ChatMessage key={i} message={msg} />
+              <ChatMessage key={`${msg.id || 'local'}-${i}`} message={msg} />
             ))}
 
             {isTyping && (
               <div className="chat-msg chat-msg-ai">
-                <div className="msg-avatar">⚖️</div>
+                <div className="msg-avatar">AI</div>
                 <div className="msg-body">
                   <div className="msg-bubble msg-ai-bubble">
                     <div className="typing-dots">
@@ -183,7 +224,7 @@ export default function ChatPage() {
               className="chat-send-btn btn btn-primary"
               disabled={!input.trim() || isTyping}
             >
-              ➤
+              &gt;
             </button>
           </form>
         </div>

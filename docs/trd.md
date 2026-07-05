@@ -356,7 +356,6 @@ Clause
 ```text
 document_id
 source_system
-source_url
 title
 document_number
 sector
@@ -513,7 +512,6 @@ Every vector record must include:
   "document_title": "string",
   "document_type": "string",
   "source_system": "admin_upload",
-  "source_url": "string|null",
   "sector": "string",
   "domain": "string",
   "issuing_body": "string",
@@ -610,7 +608,6 @@ Input:
 | `file` | Yes | `.docx` legal document uploaded by admin. |
 | `document_number` | Yes | Document number entered by admin. |
 | `title` | Yes | Document title entered by admin or confirmed from extraction. |
-| `source_url` | No | Original source URL if admin has it. |
 | `issued_date` | No | ISO date if known. |
 | `effective_date` | No | ISO date if known. |
 | `expiry_date` | No | ISO date if known. |
@@ -633,9 +630,9 @@ Pipeline:
 12. Build Neo4j document node and document-level relations only for admin-curated `relations_json`.
 13. Add vectors to ChromaDB.
 14. Add chunks to BM25.
-15. Mark `ready_for_review`.
-16. Admin reviews metadata, extraction warnings, and optional relations.
-17. Admin publishes.
+15. If required publish metadata is complete and `validity_status != unknown`, publish immediately.
+16. If required metadata is missing, mark `ready_for_review` and show blockers to admin.
+17. Admin fills required fields and publishes from the review queue.
 
 ### 13.2 Admin-Curated Relation Handling
 
@@ -708,6 +705,15 @@ Publish should:
 4. Ensure Neo4j nodes for new version have `is_published = true`.
 5. Ensure Chroma/BM25 chunks for new version are queryable.
 6. Record audit event.
+
+Publishing is blocked when any required field is missing: `title`, `document_number`,
+`document_type`, `issuing_body`, `issued_date`, `effective_date`, `validity_status`.
+`validity_status = unknown` is not publishable.
+
+Editing a published document creates or updates a new `ready_for_review` version and
+reindexes it. The old published version remains active until reindexing succeeds.
+If reindexing fails, the new version keeps `needs_republish = true` and the last
+publish error for admin review.
 
 ### 14.2 Rollback Strategy
 
@@ -792,7 +798,6 @@ Answer-generation context format:
       "clause_number": "string|null",
       "validity_status": "active",
       "content": "string",
-      "source_url": "string"
     }
   ],
   "graph_context": {
@@ -923,7 +928,7 @@ Base path:
 | GET | `/admin/documents/{document_id}` | admin | Document detail. |
 | PATCH | `/admin/documents/{document_id}` | admin | Edit normalized metadata. |
 | DELETE | `/admin/documents/{document_id}` | admin | Soft delete. |
-| POST | `/admin/documents/import` | admin | Upload legal `.docx` and start import pipeline. |
+| POST | `/admin/documents/import` | admin | Upload legal `.docx`; auto-publish when required metadata is complete. |
 | POST | `/admin/documents/{document_id}/publish` | admin | Publish reviewed version. |
 | POST | `/admin/pipeline/{run_id}/rollback` | admin | Rollback batch. |
 | POST | `/admin/effectivity/update` | admin | Manual metadata/effectivity update from admin input. |
@@ -964,7 +969,6 @@ Chat response:
       "document_number": "string",
       "article_number": "string",
       "clause_number": "string|null",
-      "source_url": "string"
     }
   ]
 }
@@ -1139,14 +1143,14 @@ Pass criteria:
 - Admin `.docx` upload import.
 - Required metadata validation and DOCX-only error handling.
 - Metadata extraction and pipeline state.
-- Admin review page.
+- Published documents page and ready-for-review queue.
 
 ### Milestone 3: Indexing
 
 - Neo4j graph writer.
 - Chroma writer.
 - BM25 writer.
-- Publish workflow.
+- Auto-publish and safe reindex workflow.
 
 ### Milestone 4: Retrieval
 
@@ -1173,8 +1177,8 @@ Pass criteria:
 - Whether BM25 default should be SQLite FTS5 or Elasticsearch local.
 - Exact LLM model names and token/cost limits.
 - Whether to use background worker thread/process for long import jobs.
-- How much manual admin editing is allowed before publish.
-- Which metadata fields should block publish versus only produce warnings.
+- Whether published-document edits should eventually move to a background job.
+- Whether non-critical metadata warnings should affect retrieval ranking.
 - How unresolved document relations should be reviewed and resolved after later imports.
 - Whether Guest can access any real retrieval endpoint.
 - Whether to store chat history in MVP UI.
@@ -1185,8 +1189,8 @@ MVP is technically acceptable when:
 
 - Admin can create users and assign roles.
 - Admin can upload a legal `.docx` document with required metadata.
-- Import pipeline reaches `ready_for_review`.
-- Admin can publish imported document.
+- Import auto-publishes when required metadata is complete.
+- Incomplete imports remain `ready_for_review` and cannot publish until blockers are fixed.
 - Neo4j contains document and structure graph for the document.
 - Neo4j contains document-level relation edges only when admin provided/confirmed them; otherwise UI and answer warnings show relation data is unavailable.
 - ChromaDB contains vector chunks with required metadata.

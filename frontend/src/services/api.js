@@ -17,13 +17,21 @@ export async function apiClient(path, options = {}, token = '') {
 
   if (!response.ok) {
     let errorMessage = `HTTP ${response.status}`;
+    let errorCode = '';
+    let errorDetails = null;
     try {
       const body = await response.json();
-      errorMessage = body?.error?.message || body?.error?.code || errorMessage;
+      errorCode = body?.error?.code || '';
+      errorDetails = body?.error?.details || null;
+      errorMessage = body?.error?.message || errorCode || errorMessage;
     } catch {
       /* Keep HTTP fallback */
     }
-    throw new Error(errorMessage);
+    const error = new Error(errorMessage);
+    error.status = response.status;
+    error.code = errorCode;
+    error.details = errorDetails;
+    throw error;
   }
 
   return response;

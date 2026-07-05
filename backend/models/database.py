@@ -28,6 +28,7 @@ def init_db(db_path: str) -> None:
 
     schema = SCHEMA_PATH.read_text(encoding="utf-8")
     with get_connection(db_path) as connection:
+        _ensure_user_roles(connection)
         _ensure_import_batch_id(connection)
         connection.executescript(schema)
         apply_migrations(connection)
@@ -42,8 +43,52 @@ def row_to_dict(row: sqlite3.Row | None) -> dict[str, Any] | None:
 
 def apply_migrations(connection: sqlite3.Connection) -> None:
     """Keep existing local SQLite files compatible with the current schema."""
+    _ensure_user_roles(connection)
     _ensure_import_batch_id(connection)
     _ensure_document_relations(connection)
+    _ensure_chat_history(connection)
+
+
+def _ensure_user_roles(connection: sqlite3.Connection) -> None:
+    row = connection.execute(
+        """
+        SELECT sql
+        FROM sqlite_master
+        WHERE type = 'table' AND name = 'users'
+        """
+    ).fetchone()
+    if row is None:
+        return
+
+    table_sql = row["sql"] or ""
+    if "free_user" in table_sql:
+        return
+
+    connection.commit()
+    connection.execute("PRAGMA foreign_keys = OFF")
+    connection.executescript(
+        """
+        CREATE TABLE users_new (
+            id TEXT PRIMARY KEY,
+            username TEXT NOT NULL UNIQUE,
+            password_hash TEXT NOT NULL,
+            role TEXT NOT NULL CHECK (role IN ('admin', 'business_user', 'free_user', 'guest')),
+            is_active INTEGER NOT NULL DEFAULT 1 CHECK (is_active IN (0, 1)),
+            created_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL
+        );
+
+        INSERT INTO users_new (
+            id, username, password_hash, role, is_active, created_at, updated_at
+        )
+        SELECT id, username, password_hash, role, is_active, created_at, updated_at
+        FROM users;
+
+        DROP TABLE users;
+        ALTER TABLE users_new RENAME TO users;
+        """
+    )
+    connection.execute("PRAGMA foreign_keys = ON")
 
 
 def _ensure_import_batch_id(connection: sqlite3.Connection) -> None:
@@ -95,6 +140,38 @@ def _ensure_document_relations(connection: sqlite3.Connection) -> None:
 
         CREATE INDEX IF NOT EXISTS idx_document_relations_import_batch_id
         ON document_relations(import_batch_id);
+        """
+    )
+
+
+def _ensure_chat_history(connection: sqlite3.Connection) -> None:
+    connection.executescript(
+        """
+        CREATE TABLE IF NOT EXISTS chat_conversations (
+            id TEXT PRIMARY KEY,
+            user_id TEXT NOT NULL,
+            title TEXT,
+            created_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL,
+            FOREIGN KEY (user_id) REFERENCES users(id)
+        );
+
+        CREATE INDEX IF NOT EXISTS idx_chat_conversations_user_id
+        ON chat_conversations(user_id);
+
+        CREATE TABLE IF NOT EXISTS chat_messages (
+            id TEXT PRIMARY KEY,
+            conversation_id TEXT NOT NULL,
+            role TEXT NOT NULL CHECK (role IN ('user', 'assistant')),
+            content TEXT NOT NULL,
+            citations_json TEXT,
+            confidence REAL,
+            created_at TEXT NOT NULL,
+            FOREIGN KEY (conversation_id) REFERENCES chat_conversations(id) ON DELETE CASCADE
+        );
+
+        CREATE INDEX IF NOT EXISTS idx_chat_messages_conversation_id
+        ON chat_messages(conversation_id);
         """
     )
 

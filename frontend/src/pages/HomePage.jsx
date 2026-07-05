@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../contexts/AuthContext';
 import FeatureCard from '../components/FeatureCard';
@@ -92,12 +92,15 @@ export default function HomePage() {
         {/* Guest Banner */}
         {isGuest && (
           <div className="guest-banner animate-slideUp">
+            <Link to="/login" className="btn btn-primary btn-sm">
+              {t('nav.login')}
+            </Link>
             🔒 {t('home.login_banner')}
           </div>
         )}
 
         {/* Advanced Features (business user only) */}
-        {(isBusinessUser || isAuthenticated) && user?.role !== 'admin' && (
+        {isBusinessUser && user?.role !== 'admin' && (
           <section className="features-section animate-slideUp">
             <div className="features-header">
               <h2>{t('home.advanced_title')}</h2>
