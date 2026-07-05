@@ -98,6 +98,51 @@ class AdminDocxImportTest(unittest.TestCase):
         self.assertEqual(document["document_number"], "01/2026/QD-TEST")
         self.assertEqual(document["title"], "QUYET DINH TEST")
 
+    def test_clause_chunks_include_article_and_clause_prefix(self) -> None:
+        from backend.services.document_import_service import (
+            build_chunk_record,
+            regex_chunk_text,
+        )
+
+        metadata = {
+            "document_number": "01/2026/QD-TEST",
+            "document_title": "Quyet dinh test",
+            "validity_status": "active",
+        }
+        chunks = regex_chunk_text(
+            "Dieu 5. Trach nhiem\n1. Nguoi X co nghia vu Y.\n2. Nguoi Z co quyen W.",
+            document_id="doc-1",
+            import_batch_id="batch-1",
+            metadata=metadata,
+        )
+
+        self.assertEqual(chunks[0]["content"], "Điều 5.1. Nguoi X co nghia vu Y.")
+        self.assertEqual(chunks[1]["content"], "Điều 5.2. Nguoi Z co quyen W.")
+
+        already_prefixed = build_chunk_record(
+            content="Điều 5.1. Nguoi X co nghia vu Y.",
+            document_id="doc-1",
+            import_batch_id="batch-1",
+            metadata=metadata,
+            article_number="5",
+            clause_number="1",
+            chunk_level="clause",
+            ordinal=1,
+        )
+        self.assertEqual(already_prefixed["content"], "Điều 5.1. Nguoi X co nghia vu Y.")
+
+        article = build_chunk_record(
+            content="Dieu 6. Noi dung khong co khoan.",
+            document_id="doc-1",
+            import_batch_id="batch-1",
+            metadata=metadata,
+            article_number="6",
+            clause_number=None,
+            chunk_level="article",
+            ordinal=1,
+        )
+        self.assertEqual(article["content"], "Dieu 6. Noi dung khong co khoan.")
+
     def test_import_extracts_signature_from_last_table(self) -> None:
         token = self._login("admin", "password")
         response = self.client.post(
@@ -477,6 +522,7 @@ class AdminDocxImportTest(unittest.TestCase):
         token = self._login("admin", "password")
         import_payload = self._import_sample_document(token)
         document_id = import_payload["document_id"]
+        self._import_document_with_number(token, "01/2025/QD-TEST")
 
         download = self.client.get(
             f"/api/v1/admin/documents/{document_id}/download",
@@ -531,6 +577,89 @@ class AdminDocxImportTest(unittest.TestCase):
         )
         self.assertEqual(relations_update.status_code, 200, relations_update.get_data(as_text=True))
         self.assertEqual(len(relations_update.get_json()["relations"]), 1)
+
+    def test_relationship_target_document_number_must_exist(self) -> None:
+        token = self._login("admin", "password")
+        import_payload = self._import_sample_document(token)
+        document_id = import_payload["document_id"]
+        self._import_document_with_number(token, "01/2025/QD-TEST")
+
+        created = self.client.put(
+            f"/api/v1/admin/documents/{document_id}/relationships",
+            headers=self._auth_headers(token),
+            json={
+                "relations": [
+                    {
+                        "relation_type": "amends",
+                        "target_document_number": "01/2025/QD-TEST",
+                        "source_text": "Sua doi van ban cu.",
+                    }
+                ]
+            },
+        )
+        self.assertEqual(created.status_code, 200, created.get_data(as_text=True))
+        self.assertEqual(len(created.get_json()["relations"]), 1)
+
+        rejected = self.client.put(
+            f"/api/v1/admin/documents/{document_id}/relationships",
+            headers=self._auth_headers(token),
+            json={
+                "relations": [
+                    {
+                        "relation_type": "replaces",
+                        "target_document_number": "MISSING-DOC",
+                    }
+                ]
+            },
+        )
+        self.assertEqual(rejected.status_code, 400, rejected.get_data(as_text=True))
+        self.assertEqual(
+            rejected.get_json()["error"]["code"],
+            "RELATION_TARGET_NOT_FOUND",
+        )
+        self.assertEqual(
+            rejected.get_json()["error"]["details"]["target_document_number"],
+            "MISSING-DOC",
+        )
+
+        detail = self.client.get(
+            f"/api/v1/admin/documents/{document_id}",
+            headers=self._auth_headers(token),
+        )
+        self.assertEqual(detail.status_code, 200, detail.get_data(as_text=True))
+        relations = detail.get_json()["relations"]
+        self.assertEqual(len(relations), 1)
+        self.assertEqual(relations[0]["target_document_number"], "01/2025/QD-TEST")
+
+    def test_import_rejects_relations_json_when_target_document_is_missing(self) -> None:
+        token = self._login("admin", "password")
+        response = self.client.post(
+            "/api/v1/admin/documents/import",
+            headers=self._auth_headers(token),
+            data={
+                "file": (make_docx_file(), "source.docx"),
+                "document_number": "02/2026/QD-TEST",
+                "title": "Quyet dinh co relation sai",
+                "validity_status": "unknown",
+                "relations_json": json.dumps(
+                    [
+                        {
+                            "relation_type": "references",
+                            "target_document_number": "MISSING-DOC",
+                        }
+                    ]
+                ),
+            },
+            content_type="multipart/form-data",
+        )
+
+        self.assertEqual(response.status_code, 400, response.get_data(as_text=True))
+        payload = response.get_json()
+        self.assertEqual(payload["error"]["code"], "RELATION_TARGET_NOT_FOUND")
+        self.assertEqual(
+            payload["error"]["details"]["target_document_number"],
+            "MISSING-DOC",
+        )
 
     def test_admin_can_hard_delete_document_and_keep_pipeline_logs(self) -> None:
         token = self._login("admin", "password")
@@ -698,6 +827,21 @@ class AdminDocxImportTest(unittest.TestCase):
             headers=self._auth_headers(token),
             data={
                 "file": (make_docx_file(), "sample.docx"),
+                "validity_status": "unknown",
+            },
+            content_type="multipart/form-data",
+        )
+        self.assertEqual(response.status_code, 201, response.get_data(as_text=True))
+        return response.get_json()
+
+    def _import_document_with_number(self, token: str, document_number: str) -> dict:
+        response = self.client.post(
+            "/api/v1/admin/documents/import",
+            headers=self._auth_headers(token),
+            data={
+                "file": (make_docx_file(), f"{document_number}.docx"),
+                "document_number": document_number,
+                "title": f"Target {document_number}",
                 "validity_status": "unknown",
             },
             content_type="multipart/form-data",

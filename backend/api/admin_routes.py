@@ -99,7 +99,7 @@ def import_document():
                     }
                 )
     except DocumentImportError as exc:
-        return error_response(exc.code, exc.message, exc.status_code)
+        return error_response(exc.code, exc.message, exc.status_code, exc.details)
 
     return jsonify(result), 201
 
@@ -142,7 +142,7 @@ def update_document_metadata(document_id: str):
         )
         detail = _auto_publish_after_save(document_id, detail)
     except DocumentImportError as exc:
-        return error_response(exc.code, exc.message, exc.status_code)
+        return error_response(exc.code, exc.message, exc.status_code, exc.details)
     return jsonify(detail)
 
 
@@ -161,7 +161,7 @@ def update_document_chunks(document_id: str):
         detail = _get_import_service().update_document_chunks(document_id, chunks)
         detail = _auto_publish_after_save(document_id, detail)
     except DocumentImportError as exc:
-        return error_response(exc.code, exc.message, exc.status_code)
+        return error_response(exc.code, exc.message, exc.status_code, exc.details)
     return jsonify(detail)
 
 
@@ -180,7 +180,7 @@ def replace_document_relationships(document_id: str):
         detail = _get_import_service().replace_document_relations(document_id, relations)
         detail = _auto_publish_after_save(document_id, detail)
     except DocumentImportError as exc:
-        return error_response(exc.code, exc.message, exc.status_code)
+        return error_response(exc.code, exc.message, exc.status_code, exc.details)
     return jsonify(detail)
 
 

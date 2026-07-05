@@ -187,6 +187,21 @@
       "publish_started": "Đã bắt đầu publish và indexing.",
       "published_success": "Đã xuất bản văn bản thành công.",
       "publish_connection_error": "Kết nối backend bị gián đoạn khi publish. Hãy kiểm tra backend logs và pipeline events."
+      ,"unsaved_lock": "Hay luu hoac hoan tac thay doi trong phan nay truoc khi chinh sua phan khac.",
+      "revert": "Hoan tac",
+      "apply": "Ap dung",
+      "cancel": "Huy",
+      "add": "Them",
+      "hierarchy_path": "Hierarchy path",
+      "content": "Noi dung",
+      "no_chunks": "Chua co chunk.",
+      "target_document_number": "So hieu van ban dich",
+      "relationship_target_required": "Nhap so hieu van ban dich.",
+      "relationship_target_not_found": "Van ban dich khong ton tai",
+      "confirm_delete_chunk": "Xoa chunk",
+      "confirm_delete_relationship": "Xoa quan he voi",
+      "no_relationships": "Chua co quan he trong nhom nay.",
+      "other_relationships": "Quan he khac"
     },
     "import": {
       "title": "Nhập DOCX",

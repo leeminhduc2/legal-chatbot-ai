@@ -186,7 +186,22 @@
       "last_publish_error": "Last publish error",
       "publish_started": "Publishing and indexing started.",
       "published_success": "Document published successfully.",
-      "publish_connection_error": "Backend connection was interrupted while publishing. Check the backend logs and pipeline events."
+      "publish_connection_error": "Backend connection was interrupted while publishing. Check the backend logs and pipeline events.",
+      "unsaved_lock": "Save or revert changes in this section before editing another section.",
+      "revert": "Revert",
+      "apply": "Apply",
+      "cancel": "Cancel",
+      "add": "Add",
+      "hierarchy_path": "Hierarchy Path",
+      "content": "Content",
+      "no_chunks": "No chunks found.",
+      "target_document_number": "Target document number",
+      "relationship_target_required": "Enter a target document number.",
+      "relationship_target_not_found": "Target document does not exist",
+      "confirm_delete_chunk": "Delete chunk",
+      "confirm_delete_relationship": "Delete relationship with",
+      "no_relationships": "No relationships in this group.",
+      "other_relationships": "Other relationships"
     },
     "import": {
       "title": "Import DOCX",

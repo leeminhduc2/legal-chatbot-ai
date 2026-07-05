@@ -800,6 +800,7 @@ class DocumentImportService:
         now = utc_now_iso()
         with get_connection(self.db_path) as connection:
             registry, version = self._ensure_editable_latest_version(connection, document_id)
+            validate_relation_targets_exist(connection, relations)
             connection.execute(
                 "DELETE FROM document_relations WHERE import_batch_id = ?",
                 (version["import_batch_id"],),
@@ -1172,6 +1173,7 @@ class DocumentImportService:
     ) -> None:
         version_id = str(uuid.uuid4())
         with get_connection(self.db_path) as connection:
+            validate_relation_targets_exist(connection, relations)
             connection.execute(
                 """
                 INSERT INTO document_versions (
@@ -1437,6 +1439,39 @@ def normalize_inferred_relations(raw_relations: Any) -> list[dict[str, Any]]:
             }
         )
     return relations
+
+
+def validate_relation_targets_exist(connection, relations: list[dict[str, Any]]) -> None:
+    for relation in relations:
+        relation_type = optional_str(relation.get("relation_type"))
+        target_document_number = optional_str(relation.get("target_document_number"))
+        if not relation_type or not target_document_number:
+            raise DocumentImportError(
+                "RELATION_TARGET_NOT_FOUND",
+                "Each relation needs relation_type and an existing target_document_number.",
+                details={
+                    "relation_type": relation_type,
+                    "target_document_number": target_document_number,
+                },
+            )
+        row = connection.execute(
+            """
+            SELECT document_id
+            FROM document_registry
+            WHERE document_number = ? AND is_deleted = 0
+            LIMIT 1
+            """,
+            (target_document_number,),
+        ).fetchone()
+        if row is None:
+            raise DocumentImportError(
+                "RELATION_TARGET_NOT_FOUND",
+                "Relationship target document does not exist.",
+                details={
+                    "relation_type": relation_type,
+                    "target_document_number": target_document_number,
+                },
+            )
 
 
 def low_confidence_fields(metadata: dict[str, Any], threshold: float = 0.7) -> list[str]:
@@ -2146,6 +2181,12 @@ def build_chunk_record(
         f"Document/{metadata.get('document_number')}/Article/{article_number}"
         + (f"/Clause/{clause_number}" if clause_number else "")
     )
+    content = format_clause_content(
+        content=content,
+        article_number=article_number,
+        clause_number=clause_number,
+        chunk_level=chunk_level,
+    )
     return {
         "chunk_id": chunk_id,
         "document_id": document_id,
@@ -2169,6 +2210,30 @@ def build_chunk_record(
         "published_version": metadata.get("published_version"),
         "ordinal": ordinal,
     }
+
+
+def format_clause_content(
+    content: str,
+    article_number: str,
+    clause_number: str | None,
+    chunk_level: str,
+) -> str:
+    content = content.strip()
+    if chunk_level != "clause" or not clause_number:
+        return content
+
+    prefix = f"Điều {article_number}.{clause_number}. "
+    if content.startswith(prefix.rstrip()):
+        return content
+    already_contextualized_pattern = (
+        rf"^\s*Điều\s+{re.escape(article_number)}\s*[,\.]\s*"
+        rf"(?:khoản\s+)?{re.escape(clause_number)}\b"
+    )
+    if re.match(already_contextualized_pattern, content, re.IGNORECASE):
+        return content
+    if re.match(rf"^\s*{re.escape(clause_number)}\.\s+", content):
+        return prefix + content.split(".", 1)[1].lstrip()
+    return prefix + content
 
 
 def make_chunk_id(
