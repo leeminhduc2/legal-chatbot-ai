@@ -8,10 +8,8 @@ import LoginPage from './pages/LoginPage';
 import HomePage from './pages/HomePage';
 import ChatPage from './pages/ChatPage';
 import ProfilePage from './pages/ProfilePage';
-import DraftDocumentPage from './pages/DraftDocumentPage';
-import DraftContractPage from './pages/DraftContractPage';
+import LegalDraftingPage from './pages/LegalDraftingPage';
 import ContractReviewPage from './pages/ContractReviewPage';
-import RiskAlertsPage from './pages/RiskAlertsPage';
 
 /* Admin */
 import AdminLayout from './pages/layouts/AdminLayout';
@@ -76,10 +74,11 @@ function AppRoutes() {
       <Route path="/profile" element={<ProtectedRoute roles={['free_user', 'business_user']}><ProfilePage /></ProtectedRoute>} />
 
       {/* Business user features */}
-      <Route path="/draft-document" element={<ProtectedRoute roles={['business_user', 'admin']}><DraftDocumentPage /></ProtectedRoute>} />
-      <Route path="/draft-contract" element={<ProtectedRoute roles={['business_user', 'admin']}><DraftContractPage /></ProtectedRoute>} />
+      <Route path="/legal-drafting" element={<ProtectedRoute roles={['business_user', 'admin']}><LegalDraftingPage /></ProtectedRoute>} />
       <Route path="/contract-review" element={<ProtectedRoute roles={['business_user', 'admin']}><ContractReviewPage /></ProtectedRoute>} />
-      <Route path="/risk-alerts" element={<ProtectedRoute roles={['business_user', 'admin']}><RiskAlertsPage /></ProtectedRoute>} />
+      <Route path="/draft-document" element={<Navigate to="/legal-drafting" replace />} />
+      <Route path="/draft-contract" element={<Navigate to="/legal-drafting" replace />} />
+      <Route path="/risk-alerts" element={<Navigate to="/contract-review" replace />} />
 
       {/* Admin */}
       <Route

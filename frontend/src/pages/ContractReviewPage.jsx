@@ -44,6 +44,7 @@ export default function ContractReviewPage() {
 
   const statusIcon = { passed: '✅', failed: '❌', warning: '⚠️' };
   const severityBadge = { high: 'badge-danger', medium: 'badge-warning', low: 'badge-info' };
+  const risks = Array.isArray(report?.risks) ? report.risks : [];
 
   return (
     <div className="home-layout">
@@ -110,13 +111,21 @@ export default function ContractReviewPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {report.risks?.map((r, i) => (
-                      <tr key={i}>
-                        <td><span className={`badge ${severityBadge[r.severity]}`}>{t(`risk.${r.severity}`)}</span></td>
-                        <td>{r.description}</td>
-                        <td>{r.suggestion}</td>
+                    {risks.length > 0 ? (
+                      risks.map((r, i) => (
+                        <tr key={i}>
+                          <td><span className={`badge ${severityBadge[r.severity]}`}>{t(`risk.${r.severity}`)}</span></td>
+                          <td>{r.description}</td>
+                          <td>{r.suggestion}</td>
+                        </tr>
+                      ))
+                    ) : (
+                      <tr>
+                        <td colSpan={3} className="text-muted">
+                          {t('risk.no_risks')}
+                        </td>
                       </tr>
-                    ))}
+                    )}
                   </tbody>
                 </table>
               </div>

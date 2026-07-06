@@ -60,6 +60,11 @@
     ]
   },
   "features": {
+    "legal_drafting": {
+      "title": "Soạn thảo văn bản pháp lý",
+      "desc": "Tạo tờ trình, đề nghị phê duyệt, phụ lục và bản nháp hợp đồng bảo hiểm trong một nơi.",
+      "icon": "📝"
+    },
     "draft_document": {
       "title": "Soạn thảo văn bản",
       "desc": "Tạo tờ trình, đề nghị phê duyệt, phụ lục hợp đồng chuyên nghiệp.",
@@ -72,8 +77,12 @@
     },
     "contract_review": {
       "title": "Rà soát hợp đồng",
-      "desc": "Kiểm tra thẩm quyền, hiệu lực và rủi ro trong hợp đồng.",
+      "desc": "Rà soát thẩm quyền, hiệu lực, điều khoản thiếu hoặc mơ hồ và rủi ro pháp lý trong một báo cáo.",
       "icon": "🔍"
+    },
+    "locked": {
+      "free": "Yêu cầu nâng cấp lên Business User",
+      "guest": "Đăng ký tài khoản để tiếp tục"
     },
     "risk_alerts": {
       "title": "Cảnh báo rủi ro",
@@ -284,6 +293,21 @@
     "unknown": "Không xác định"
   },
   "draft": {
+    "legal": {
+      "title": "Soạn thảo văn bản pháp lý",
+      "subtitle": "Soạn thảo văn bản nội bộ và hợp đồng bảo hiểm từ một form thống nhất",
+      "type": "Loại văn bản pháp lý",
+      "purpose": "Chủ đề / mục đích",
+      "purpose_placeholder": "Ví dụ: xin phê duyệt ký hợp đồng đại lý bảo hiểm",
+      "requirements": "Yêu cầu / điều khoản chính",
+      "requirements_placeholder": "Mô tả cấu trúc, điều khoản, ràng buộc hoặc bối cảnh nghiệp vụ cần đưa vào...",
+      "generate": "Tạo bản nháp",
+      "preview": "Xem trước",
+      "generated": "Đã tạo bản nháp",
+      "missing_subject": "Nhập chủ đề hoặc mục đích trước khi tạo bản nháp.",
+      "auto_note": "(Bản nháp được tạo tự động - vui lòng rà soát pháp lý trước khi sử dụng)",
+      "disclaimer": "⚠️ Đây là bản nháp tham khảo. Vui lòng rà soát pháp lý trước khi sử dụng chính thức."
+    },
     "document": {
       "title": "Soạn thảo văn bản",
       "subtitle": "Tạo tờ trình, đề nghị phê duyệt, phụ lục hợp đồng",

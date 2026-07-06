@@ -60,6 +60,11 @@
     ]
   },
   "features": {
+    "legal_drafting": {
+      "title": "Legal Document Drafting",
+      "desc": "Create submissions, approval requests, appendices, and insurance contract drafts in one workspace.",
+      "icon": "📝"
+    },
     "draft_document": {
       "title": "Draft Documents",
       "desc": "Create official submissions, approval requests, contract appendices.",
@@ -72,8 +77,12 @@
     },
     "contract_review": {
       "title": "Contract Review",
-      "desc": "Check authority, validity, and risks in contracts.",
+      "desc": "Review authority, validity, missing clauses, ambiguous terms, and legal risks in one report.",
       "icon": "🔍"
+    },
+    "locked": {
+      "free": "Upgrade to Business User required",
+      "guest": "Register an account to continue"
     },
     "risk_alerts": {
       "title": "Risk Alerts",
@@ -284,6 +293,21 @@
     "unknown": "Unknown"
   },
   "draft": {
+    "legal": {
+      "title": "Legal Document Drafting",
+      "subtitle": "Draft internal legal documents and insurance contracts from one unified form",
+      "type": "Legal Document Type",
+      "purpose": "Subject / Purpose",
+      "purpose_placeholder": "Example: request approval for an insurance agency agreement",
+      "requirements": "Requirements / Key Terms",
+      "requirements_placeholder": "Describe the required structure, clauses, constraints, or business context...",
+      "generate": "Generate Draft",
+      "preview": "Preview",
+      "generated": "Draft generated",
+      "missing_subject": "Enter a subject or purpose before generating.",
+      "auto_note": "(Automatically generated draft - please review legally before use)",
+      "disclaimer": "⚠️ This is a reference draft. Please review legally before official use."
+    },
     "document": {
       "title": "Draft Documents",
       "subtitle": "Create submissions, approval requests, contract appendices",

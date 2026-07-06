@@ -8,7 +8,7 @@ import './HomePage.css';
 
 export default function HomePage() {
   const { t } = useTranslation();
-  const { user, isGuest, isBusinessUser, isAuthenticated } = useAuth();
+  const { user, isGuest, isBusinessUser, isFreeUser, isAuthenticated } = useAuth();
   const navigate = useNavigate();
   const [query, setQuery] = useState('');
 
@@ -25,11 +25,13 @@ export default function HomePage() {
   const suggestions = t('home.suggestions', { returnObjects: true });
 
   const features = [
-    { key: 'draft_document', to: '/draft-document' },
-    { key: 'draft_contract', to: '/draft-contract' },
+    { key: 'legal_drafting', to: '/legal-drafting' },
     { key: 'contract_review', to: '/contract-review' },
-    { key: 'risk_alerts', to: '/risk-alerts' },
   ];
+  const showAdvancedFeatures = user?.role !== 'admin' && (isBusinessUser || isFreeUser || isGuest);
+  const lockedFeatures = !isBusinessUser;
+  const lockedText = isGuest ? t('features.locked.guest') : t('features.locked.free');
+  const lockedTo = isGuest ? '/register' : '';
 
   return (
     <div className="home-layout">
@@ -99,8 +101,8 @@ export default function HomePage() {
           </div>
         )}
 
-        {/* Advanced Features (business user only) */}
-        {isBusinessUser && user?.role !== 'admin' && (
+        {/* Advanced Features */}
+        {showAdvancedFeatures && (
           <section className="features-section animate-slideUp">
             <div className="features-header">
               <h2>{t('home.advanced_title')}</h2>
@@ -114,6 +116,9 @@ export default function HomePage() {
                   title={t(`features.${f.key}.title`)}
                   description={t(`features.${f.key}.desc`)}
                   to={f.to}
+                  locked={lockedFeatures}
+                  lockedText={lockedText}
+                  lockedTo={lockedTo}
                 />
               ))}
             </div>
