@@ -10,6 +10,7 @@ export default function ChatMessage({ message }) {
 
   const isUser = message.role === 'user';
   const confidence = normalizeConfidence(message.confidence);
+  const hasAgentTimeline = message.agent_timeline?.length > 0;
   const hasAgentTrace = message.agent_steps?.length > 0 || message.tool_trace?.length > 0;
 
   const handleCopy = () => {
@@ -86,50 +87,68 @@ export default function ChatMessage({ message }) {
             </div>
           )}
 
-          {hasAgentTrace && (
+          {(hasAgentTimeline || hasAgentTrace) && (
             <div className="msg-agent-trace">
               <button
                 className="agent-trace-toggle"
                 onClick={() => setAgentOpen(!agentOpen)}
               >
-                {t('chat.agent_steps')} ({message.tool_trace?.length || message.agent_steps?.length || 0})
+                {t('chat.agent_steps')} ({message.agent_timeline?.length || message.tool_trace?.length || message.agent_steps?.length || 0})
                 <span className={`toggle-arrow ${agentOpen ? 'open' : ''}`}>v</span>
               </button>
               {agentOpen && (
                 <div className="agent-trace-panel animate-slideDown">
+                  {hasAgentTimeline && (
+                    <div className="agent-timeline-list">
+                      {message.agent_timeline.map((item, i) => (
+                        <div key={`timeline-${i}`} className="agent-timeline-item">
+                          <span className={`agent-timeline-dot agent-status-${item.status || 'ok'}`} />
+                          <div className="agent-timeline-copy">
+                            <strong>{item.title}</strong>
+                            <span>{item.description}</span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                   {message.memory_used && (
                     <div className="agent-memory">
                       {t('chat.memory_used')}: {message.memory_used.recent_message_count || 0}
                       {message.memory_used.summary_used ? `, ${t('chat.summary_used')}` : ''}
                     </div>
                   )}
-                  {message.agent_steps?.map((step, i) => (
-                    <div key={`step-${i}`} className="agent-step-item">
-                      <span className={`agent-status agent-status-${step.status || 'ok'}`}>
-                        {step.status || 'ok'}
-                      </span>
-                      <span className="agent-phase">{step.phase}</span>
-                      <span className="agent-message">{step.message}</span>
-                    </div>
-                  ))}
-                  {message.tool_trace?.map((trace, i) => (
-                    <div key={`tool-${i}`} className="agent-tool-item">
-                      <div className="agent-tool-header">
-                        <span className="agent-tool-name">{trace.tool}</span>
-                        <span className="agent-tool-meta">
-                          {trace.phase} - {trace.result_count || 0} {t('chat.results')} - {trace.duration_ms || 0}ms
-                        </span>
-                      </div>
-                      {trace.input_summary && (
-                        <div className="agent-tool-input">{trace.input_summary}</div>
-                      )}
-                      {trace.warnings?.length > 0 && (
-                        <div className="agent-tool-warning">
-                          {trace.warnings.slice(0, 2).join(', ')}
+                  {hasAgentTrace && (
+                    <details className="agent-technical-trace">
+                      <summary>{t('chat.technical_steps')}</summary>
+                      {message.agent_steps?.map((step, i) => (
+                        <div key={`step-${i}`} className="agent-step-item">
+                          <span className={`agent-status agent-status-${step.status || 'ok'}`}>
+                            {step.status || 'ok'}
+                          </span>
+                          <span className="agent-phase">{step.phase}</span>
+                          <span className="agent-message">{step.message}</span>
                         </div>
-                      )}
-                    </div>
-                  ))}
+                      ))}
+                      {message.tool_trace?.map((trace, i) => (
+                        <div key={`tool-${i}`} className="agent-tool-item">
+                          <div className="agent-tool-header">
+                            <span className="agent-tool-name">{trace.tool}</span>
+                            <span className="agent-tool-meta">
+                              {trace.phase} - {trace.result_count || 0} {t('chat.results')} - {trace.duration_ms || 0}ms
+                            </span>
+                          </div>
+                          {trace.input_summary && (
+                            <div className="agent-tool-input">{trace.input_summary}</div>
+                          )}
+                          {trace.warnings?.length > 0 && (
+                            <div className="agent-tool-warning">
+                              {trace.warnings.slice(0, 2).join(', ')}
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </details>
+                  )}
                 </div>
               )}
             </div>

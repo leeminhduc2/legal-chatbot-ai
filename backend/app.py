@@ -14,6 +14,7 @@ if __package__ in {None, ""}:
 from backend.api.admin_routes import admin_bp
 from backend.api.auth_routes import auth_bp
 from backend.api.chat_routes import chat_bp
+from backend.api.contract_routes import contracts_bp
 from backend.config import Config
 from backend.models.database import init_db
 from backend.services.seed_service import seed_admin_user
@@ -33,6 +34,7 @@ def create_app(config: Config | None = None) -> Flask:
     app.register_blueprint(admin_bp)
     app.register_blueprint(auth_bp)
     app.register_blueprint(chat_bp)
+    app.register_blueprint(contracts_bp)
 
     @app.get("/api/v1/health")
     def health_check():

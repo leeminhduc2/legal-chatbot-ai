@@ -31,21 +31,6 @@ def login():
     return jsonify(result)
 
 
-@auth_bp.post("/register")
-def register():
-    payload = request.get_json(silent=True) or {}
-    username = str(payload.get("username", "")).strip()
-    password = str(payload.get("password", ""))
-
-    auth_service = _get_auth_service()
-    try:
-        result = auth_service.register_user(username=username, password=password)
-    except AuthError as exc:
-        return error_response(exc.code, exc.message, exc.status_code)
-
-    return jsonify(result), 201
-
-
 @auth_bp.post("/logout")
 @require_auth
 def logout():

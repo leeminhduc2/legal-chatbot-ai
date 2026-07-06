@@ -8,7 +8,7 @@ import './HomePage.css';
 
 export default function HomePage() {
   const { t } = useTranslation();
-  const { user, isGuest, isBusinessUser, isFreeUser, isAuthenticated } = useAuth();
+  const { user, isGuest, isBusinessUser, isAuthenticated } = useAuth();
   const navigate = useNavigate();
   const [query, setQuery] = useState('');
 
@@ -28,10 +28,10 @@ export default function HomePage() {
     { key: 'legal_drafting', to: '/legal-drafting' },
     { key: 'contract_review', to: '/contract-review' },
   ];
-  const showAdvancedFeatures = user?.role !== 'admin' && (isBusinessUser || isFreeUser || isGuest);
+  const showAdvancedFeatures = user?.role !== 'admin' && (isBusinessUser || isGuest);
   const lockedFeatures = !isBusinessUser;
-  const lockedText = isGuest ? t('features.locked.guest') : t('features.locked.free');
-  const lockedTo = isGuest ? '/register' : '';
+  const lockedText = t('features.locked.guest');
+  const lockedTo = isGuest ? '/login' : '';
 
   return (
     <div className="home-layout">

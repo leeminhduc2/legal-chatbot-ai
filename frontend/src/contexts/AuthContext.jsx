@@ -58,10 +58,6 @@ export function AuthProvider({ children }) {
     return authenticate('/auth/login', username, password);
   };
 
-  const register = async (username, password) => {
-    return authenticate('/auth/register', username, password);
-  };
-
   const logout = async () => {
     try {
       await apiClient('/auth/logout', { method: 'POST' }, token);
@@ -80,7 +76,6 @@ export function AuthProvider({ children }) {
   const isGuest = user?.role === 'guest' && !token;
   const isAdmin = user?.role === 'admin';
   const isBusinessUser = user?.role === 'business_user';
-  const isFreeUser = user?.role === 'free_user';
 
   return (
     <AuthContext.Provider
@@ -89,14 +84,12 @@ export function AuthProvider({ children }) {
         user,
         loading,
         login,
-        register,
         logout,
         loginAsGuest,
         isAuthenticated,
         isGuest,
         isAdmin,
         isBusinessUser,
-        isFreeUser,
         clearAuth,
       }}
     >

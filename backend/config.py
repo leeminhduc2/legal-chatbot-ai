@@ -43,6 +43,7 @@ class Config:
     chat_agent_max_iterations: int = 8
     chat_memory_recent_messages: int = 5
     chat_memory_summary_enabled: bool = True
+    contract_review_modules_path: str = "data/rules/contract_review_modules.json"
 
     @classmethod
     def from_env(cls) -> "Config":
@@ -112,6 +113,10 @@ class Config:
             chat_memory_summary_enabled=_bool_from_env(
                 "CHAT_MEMORY_SUMMARY_ENABLED",
                 cls.chat_memory_summary_enabled,
+            ),
+            contract_review_modules_path=os.getenv(
+                "CONTRACT_REVIEW_MODULES_PATH",
+                cls.contract_review_modules_path,
             ),
         )
 

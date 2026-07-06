@@ -75,6 +75,7 @@ def chat():
             "agent_steps": answer_payload.get("agent_steps", []),
             "tool_trace": answer_payload.get("tool_trace", []),
             "memory_used": answer_payload.get("memory_used", {}),
+            "agent_timeline": answer_payload.get("agent_timeline", []),
         },
     )
     history_service.refresh_summary(
@@ -368,6 +369,7 @@ def format_message(message: dict[str, Any] | None) -> dict[str, Any]:
         "agent_steps": metadata.get("agent_steps", []),
         "tool_trace": metadata.get("tool_trace", []),
         "memory_used": metadata.get("memory_used", {}),
+        "agent_timeline": metadata.get("agent_timeline", []),
         "metadata": metadata,
         "created_at": message["created_at"],
     }

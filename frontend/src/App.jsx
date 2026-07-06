@@ -55,7 +55,6 @@ function AppRoutes() {
     <Routes>
       {/* Public */}
       <Route path="/login" element={<LoginPage />} />
-      <Route path="/register" element={<LoginPage initialMode="register" />} />
 
       {/* Home - accessible to all, redirects admin */}
       <Route
@@ -71,7 +70,7 @@ function AppRoutes() {
       <Route path="/chat" element={<ProtectedRoute allowGuest><ChatPage /></ProtectedRoute>} />
 
       {/* Profile - authenticated non-guest users */}
-      <Route path="/profile" element={<ProtectedRoute roles={['free_user', 'business_user']}><ProfilePage /></ProtectedRoute>} />
+      <Route path="/profile" element={<ProtectedRoute roles={['business_user']}><ProfilePage /></ProtectedRoute>} />
 
       {/* Business user features */}
       <Route path="/legal-drafting" element={<ProtectedRoute roles={['business_user', 'admin']}><LegalDraftingPage /></ProtectedRoute>} />

@@ -4,7 +4,7 @@ CREATE TABLE IF NOT EXISTS users (
     id TEXT PRIMARY KEY,
     username TEXT NOT NULL UNIQUE,
     password_hash TEXT NOT NULL,
-    role TEXT NOT NULL CHECK (role IN ('admin', 'business_user', 'free_user', 'guest')),
+    role TEXT NOT NULL CHECK (role IN ('admin', 'business_user')),
     is_active INTEGER NOT NULL DEFAULT 1 CHECK (is_active IN (0, 1)),
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL
@@ -54,6 +54,27 @@ CREATE TABLE IF NOT EXISTS chat_messages (
 
 CREATE INDEX IF NOT EXISTS idx_chat_messages_conversation_id
 ON chat_messages(conversation_id);
+
+CREATE TABLE IF NOT EXISTS contract_review_jobs (
+    id TEXT PRIMARY KEY,
+    user_id TEXT NOT NULL,
+    file_name TEXT NOT NULL,
+    file_path TEXT NOT NULL,
+    status TEXT NOT NULL CHECK (status IN ('queued', 'running', 'completed', 'failed')),
+    document_kind TEXT,
+    result_json TEXT,
+    error_message TEXT,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    completed_at TEXT,
+    FOREIGN KEY (user_id) REFERENCES users(id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_contract_review_jobs_user_id
+ON contract_review_jobs(user_id);
+
+CREATE INDEX IF NOT EXISTS idx_contract_review_jobs_status
+ON contract_review_jobs(status);
 
 CREATE TABLE IF NOT EXISTS document_registry (
     document_id TEXT PRIMARY KEY,

@@ -162,6 +162,7 @@ class DocumentImportService:
                 metadata_hints=metadata_hints,
                 text=text,
                 paragraphs=extracted["paragraphs"],
+                tables=extracted["tables"],
                 import_batch_id=import_batch_id,
             )
             document_id, version = self._upsert_document_registry(metadata, now)
@@ -861,20 +862,44 @@ class DocumentImportService:
         metadata_hints: dict[str, Any],
         text: str,
         paragraphs: list[str],
+        tables: list[dict[str, Any]],
         import_batch_id: str,
     ) -> ImportMetadata:
-        llm_metadata = infer_metadata_with_deepseek(
-            config=self.config,
+        initial_values = {
+            field: first_present(form_data.get(field), metadata_hints.get(field))
+            for field in METADATA_LLM_FIELDS
+        }
+        requested_fields = [
+            field for field, value in initial_values.items() if not optional_str(value)
+        ]
+        llm_regions = build_metadata_llm_regions(
             text=text,
             paragraphs=paragraphs,
+            tables=tables,
+            requested_fields=requested_fields,
         )
-        merged_hints = {
-            **metadata_hints,
-            **{key: value for key, value in llm_metadata.items() if value},
+        llm_metadata = infer_metadata_with_deepseek(
+            config=self.config,
+            requested_fields=requested_fields,
+            regions=llm_regions,
+        )
+        llm_values = {
+            key: value
+            for key, value in llm_metadata.items()
+            if key in requested_fields and optional_str(value)
         }
+        merged_hints = {**metadata_hints, **llm_values}
+        source_by_field = build_metadata_source_map(
+            form_data=form_data,
+            metadata_hints=metadata_hints,
+            llm_values=llm_values,
+        )
         extraction_sources = {
             "regex": metadata_hints,
             "llm": llm_metadata,
+            "requested_fields": requested_fields,
+            "regions_used": sorted(llm_regions.keys()),
+            "source_by_field": source_by_field,
         }
         document_number = first_present(
             form_data.get("document_number"),
@@ -912,9 +937,11 @@ class DocumentImportService:
         needs_review_fields = []
         if not document_number:
             document_number = f"UNIDENTIFIED-{import_batch_id[:8]}"
+            source_by_field["document_number"] = "fallback"
             needs_review_fields.append("document_number")
         if not title:
             title = make_fallback_title(paragraphs, import_batch_id)
+            source_by_field["title"] = "fallback"
             needs_review_fields.append("title")
         for field_name, value in [
             ("document_type", document_type),
@@ -1414,6 +1441,96 @@ def make_fallback_title(paragraphs: list[str], import_batch_id: str) -> str:
     return f"Untitled document {import_batch_id[:8]}"
 
 
+METADATA_LLM_FIELDS = (
+    "document_number",
+    "title",
+    "document_type",
+    "issuing_body",
+    "issued_date",
+    "effective_date",
+    "signer_title",
+    "signer_name",
+)
+METADATA_FIELD_REGIONS = {
+    "document_number": "header_table",
+    "issuing_body": "header_table",
+    "issued_date": "header_table",
+    "title": "title_head",
+    "document_type": "title_head",
+    "effective_date": "effective_clause",
+    "signer_title": "signature_block",
+    "signer_name": "signature_block",
+}
+
+
+def build_metadata_source_map(
+    form_data: dict[str, Any],
+    metadata_hints: dict[str, Any],
+    llm_values: dict[str, Any],
+) -> dict[str, str]:
+    sources = {}
+    for field in METADATA_LLM_FIELDS:
+        if optional_str(form_data.get(field)):
+            sources[field] = "form"
+        elif optional_str(metadata_hints.get(field)):
+            sources[field] = "regex"
+        elif optional_str(llm_values.get(field)):
+            sources[field] = "llm"
+    return sources
+
+
+def build_metadata_llm_regions(
+    text: str,
+    paragraphs: list[str],
+    tables: list[dict[str, Any]],
+    requested_fields: list[str],
+) -> dict[str, str]:
+    region_names = {
+        METADATA_FIELD_REGIONS[field]
+        for field in requested_fields
+        if field in METADATA_FIELD_REGIONS
+    }
+    regions: dict[str, str] = {}
+    if "header_table" in region_names:
+        regions["header_table"] = limit_words(
+            "\n".join([first_table_context(tables), make_first_context(paragraphs, text)]),
+            700,
+        )
+    if "title_head" in region_names:
+        regions["title_head"] = make_first_context(paragraphs, text)
+    if "effective_clause" in region_names:
+        regions["effective_clause"] = extract_effective_clause_text(text)
+    if "signature_block" in region_names:
+        regions["signature_block"] = signature_block_context(paragraphs, tables, text)
+    return {key: value for key, value in regions.items() if value.strip()}
+
+
+def first_table_context(tables: list[dict[str, Any]]) -> str:
+    if not tables:
+        return ""
+    return "\n".join(flatten_table_text(tables[0]))
+
+
+def signature_block_context(
+    paragraphs: list[str],
+    tables: list[dict[str, Any]],
+    text: str,
+) -> str:
+    table_lines = extract_signature_lines_from_last_table(tables)
+    if not table_lines and tables:
+        table_lines = flatten_table_text(tables[-1])
+    context = "\n".join([*paragraphs[-35:], *table_lines]) or make_closing_context(
+        paragraphs,
+        text,
+    )
+    return limit_words(context, 700)
+
+
+def limit_words(value: str, max_words: int) -> str:
+    words = str(value or "").split()
+    return " ".join(words[:max_words])
+
+
 def normalize_inferred_relations(raw_relations: Any) -> list[dict[str, Any]]:
     if not isinstance(raw_relations, list):
         return []
@@ -1531,9 +1648,14 @@ def parse_relations_json(raw_value: str) -> list[dict[str, Any]]:
 
 def infer_metadata_with_deepseek(
     config: Config,
-    text: str,
-    paragraphs: list[str],
+    requested_fields: list[str],
+    regions: dict[str, str],
 ) -> dict[str, Any]:
+    requested_fields = [
+        field for field in requested_fields if field in METADATA_LLM_FIELDS
+    ]
+    if not requested_fields or not regions:
+        return {}
     api_key = os.getenv("DEEPSEEK_API_KEY")
     if not api_key:
         return {}
@@ -1543,19 +1665,23 @@ def infer_metadata_with_deepseek(
         return {}
 
     prompt = {
-        "first_context": make_first_context(paragraphs, text),
-        "effect_context": extract_effective_clause_text(text),
-        "closing_context": make_closing_context(paragraphs, text),
+        "requested_fields": requested_fields,
+        "regions": regions,
         "instructions": (
-            "Extract Vietnamese legal document metadata. Return JSON only with keys: "
-            "title, document_number, issuing_body, issued_date, effective_date, signer_name, "
-            "signer_title, document_type, relations, confidence, needs_review_fields, evidence. "
+            "Extract only the requested Vietnamese legal document metadata fields. "
+            "Return JSON only with the requested field keys plus confidence, "
+            "needs_review_fields, and evidence. Do not return unrequested fields. "
             "confidence must be an object with field names mapped to 0.0-1.0 scores. "
             "Dates must use YYYY-MM-DD. Use null when unsure."
         ),
     }
     try:
-        client = OpenAI(api_key=api_key, base_url="https://api.deepseek.com/v1")
+        client = OpenAI(
+            api_key=api_key,
+            base_url="https://api.deepseek.com/v1",
+            max_retries=0,
+            timeout=10,
+        )
         response = client.chat.completions.create(
             model=config.llm_model_metadata or "deepseek-v4-flash",
             messages=[
@@ -1572,7 +1698,15 @@ def infer_metadata_with_deepseek(
         )
         content = response.choices[0].message.content or "{}"
         parsed = json.loads(content)
-        return parsed if isinstance(parsed, dict) else {}
+        if not isinstance(parsed, dict):
+            return {}
+        allowed_keys = {
+            *requested_fields,
+            "confidence",
+            "needs_review_fields",
+            "evidence",
+        }
+        return {key: value for key, value in parsed.items() if key in allowed_keys}
     except Exception:
         return {}
 
@@ -2094,6 +2228,27 @@ _AMENDMENT_QUOTE_INTRO_RE = re.compile(
 _QUOTE_OPEN_CHARS = {"\u201c", "\u2018", "\u00ab"}
 _QUOTE_CLOSE_CHARS = {"\u201d", "\u2019", "\u00bb"}
 _QUOTE_START_CHARS = tuple(sorted([*_QUOTE_OPEN_CHARS, '"']))
+EXTRACT_SEGMENTS_SEGMENT_PATTERN_1 = (
+    r"(\n\s*[\u0110\u00d0]i\u1ec1u\s*\d+\s*\..*?|\n\s*[\u0110\u00d0]i\u1ec1u\s*\d+\s*:.*?|"
+    r"\n\s*[\u0110\u00d0]i\u1ec1u\s*\d+\s*-\s*.*?|\n\s*[\u0110\u00d0]i\u1ec1u\s*\d+\s*:\s*.*?|"
+    r"(?:^|\n)([\u0110\u00d0]i\u1ec1u\s*\d+\s*\n[\s\S]*?))"
+    r"(?=(?:\n\s*[\u0110\u00d0]i\u1ec1u\s*\d+\s*[\.\-:]|$|"
+    r"./\n|\./\.|\n\s*PH\u1ee4 L\u1ee4C [IVX]+|\n\s*PH\u1ee4 L\u1ee4C \d+|\n\s*PH\u1ee4 L\u1ee4C|"
+    r"\n\s*Ph\u1ee5 l\u1ee5c [IVX]+|\n\s*Ph\u1ee5 l\u1ee5c \d+|\n\s*Ph\u1ee5 l\u1ee5c|"
+    r"\nCh\u01b0\u01a1ng \d+|\nCH\u01af\u01a0NG \d+|\nCh\u01b0\u01a1ng [IVX]+|\nCH\u01af\u01a0NG [IVX]+|\nCH\u01af\u01a0NG TR\u00ccNH|"
+    r"\nQUI CH\u1ebe|\nQUY \u0110\u1ecaNH\n|\nQUY CH\u1ebe\n|"
+    r"\nC\u1ed8NG HO\u00c0 X\u00c3 H\u1ed8I CH\u1ee6 NGH\u0128A VI\u1ec6T NAM\n|\n\(\u0110\u00e3 k\u00fd\)|"
+    r".\nM\u1ee5c \d+|.\nM\u1ee4C \d+|.\nTI\u1ec2U M\u1ee4C|.\nTi\u1ec3u m\u1ee5c|.\nTi\u1ec3u M\u1ee5c|\nM\u1ee5c [IVX]+|\nM\u1ee4C [IVX]+"
+    r"\nN\u01a1i nh\u1eadn|\nKT\.|\nTM\.|\nTM/|\nT/M|\nM\u1ee4C L\u1ee4C|"
+    r"\nCH\u1ee6 T\u1ecaCH N\u01af\u1edaC|\nTH\u1ee6 T\u01af\u1edaNG|\nPH\u00d3 TH\u1ee6 T\u01af\u1edaNG|\nB\u1ed8 TR\u01af\u1edeNG|\nTH\u1ee8 TR\u01af\u1edeNG|\nCH\u1ee6 T\u1ecaCH|\nPH\u00d3 CH\u1ee6 T\u1ecaCH|"
+    r"\nTH\u1ed0NG \u0110\u1ed0C|\nPH\u00d3 TH\u1ed0NG \u0110\u1ed0C|\nT\u1ed4NG KI\u1ec2M TO\u00c1N NH\u00c0 N\u01af\u1edaC|\nPH\u00d3 T\u1ed4NG KI\u1ec2M TO\u00c1N NH\u00c0 N\u01af\u1edaC|"
+    r"\nT\u1ed4NG THANH TRA|\nPH\u00d3 T\u1ed4NG THANH TRA|\nT\u1ed4NG KI\u1ec2M TO\u00c1N|\nPH\u00d3 T\u1ed4NG KI\u1ec2M TO\u00c1N|"
+    r"\nCH\u1ee6 NHI\u1ec6M|\nPH\u00d3 CH\u1ee6 NHI\u1ec6M|\nCH\u00c1NH \u00c1N))"
+)
+_SEGMENT_ARTICLE_NUMBER_RE = re.compile(
+    r"^\s*(?:\u0110i\u1ec1u|\u00d0i\u1ec1u)\s*(\d+[a-zA-Z]?)",
+    re.IGNORECASE,
+)
 
 
 def regex_chunk_text(
@@ -2102,8 +2257,15 @@ def regex_chunk_text(
     import_batch_id: str,
     metadata: dict[str, Any],
 ) -> list[dict[str, Any]]:
-    article_matches = _find_article_boundaries(text)
-    if not article_matches:
+    article_segments = (
+        _find_article_segments_with_segment_pattern(text)
+        if False  # Toggle to False to compare with the legacy boundary splitter.
+        else _find_article_segments_with_legacy_boundaries(text)
+    )
+    if not article_segments:
+        article_segments = _find_article_segments_with_legacy_boundaries(text)
+
+    if not article_segments:
         return [
             build_chunk_record(
                 content=text.strip(),
@@ -2118,13 +2280,7 @@ def regex_chunk_text(
         ]
 
     chunks: list[dict[str, Any]] = []
-    for article_index, (start, article_number) in enumerate(article_matches):
-        end = (
-            article_matches[article_index + 1][0]
-            if article_index + 1 < len(article_matches)
-            else len(text)
-        )
-        article_text = text[start:end].strip()
+    for article_number, article_text in article_segments:
         clause_chunks = split_article_clauses(article_text)
         if not clause_chunks:
             chunks.append(
@@ -2154,6 +2310,51 @@ def regex_chunk_text(
                 )
             )
     return chunks
+
+
+def _find_article_segments_with_segment_pattern(text: str) -> list[tuple[str, str]]:
+    segments: list[tuple[str, str]] = []
+    search_text = text if text.startswith("\n") else "\n" + text
+    offset_adjust = 0 if search_text is text else -1
+    for match in re.finditer(
+        EXTRACT_SEGMENTS_SEGMENT_PATTERN_1,
+        search_text,
+        flags=re.IGNORECASE | re.DOTALL,
+    ):
+        raw_article_text = match.group(0)
+        article_text_start = (
+            match.start()
+            + len(raw_article_text)
+            - len(raw_article_text.lstrip())
+            + offset_adjust
+        )
+        if _is_chunk_boundary_protected_at(text, article_text_start):
+            continue
+        article_text = raw_article_text.strip()
+        number_match = _SEGMENT_ARTICLE_NUMBER_RE.match(article_text)
+        if number_match:
+            segments.append((number_match.group(1), article_text))
+    return segments
+
+
+def _find_article_segments_with_legacy_boundaries(text: str) -> list[tuple[str, str]]:
+    article_matches = _find_article_boundaries(text)
+    segments = []
+    for article_index, (start, article_number) in enumerate(article_matches):
+        end = (
+            article_matches[article_index + 1][0]
+            if article_index + 1 < len(article_matches)
+            else len(text)
+        )
+        segments.append((article_number, text[start:end].strip()))
+    return segments
+
+
+def _is_chunk_boundary_protected_at(text: str, offset: int) -> bool:
+    for line_start, line_end, _line_text, protected in _iter_chunk_boundary_lines(text):
+        if line_start <= offset < line_end:
+            return protected
+    return False
 
 
 def split_article_clauses(article_text: str) -> list[tuple[str, str]]:

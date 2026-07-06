@@ -47,6 +47,7 @@ def apply_migrations(connection: sqlite3.Connection) -> None:
     _ensure_import_batch_id(connection)
     _ensure_document_relations(connection)
     _ensure_chat_history(connection)
+    _ensure_contract_review_jobs(connection)
 
 
 def _ensure_user_roles(connection: sqlite3.Connection) -> None:
@@ -61,7 +62,10 @@ def _ensure_user_roles(connection: sqlite3.Connection) -> None:
         return
 
     table_sql = row["sql"] or ""
-    if "free_user" in table_sql:
+    roles_to_remove = ("free_user", "guest")
+    _delete_users_by_role(connection, roles_to_remove)
+
+    if "free_user" not in table_sql and "guest" not in table_sql:
         return
 
     connection.commit()
@@ -72,7 +76,7 @@ def _ensure_user_roles(connection: sqlite3.Connection) -> None:
             id TEXT PRIMARY KEY,
             username TEXT NOT NULL UNIQUE,
             password_hash TEXT NOT NULL,
-            role TEXT NOT NULL CHECK (role IN ('admin', 'business_user', 'free_user', 'guest')),
+            role TEXT NOT NULL CHECK (role IN ('admin', 'business_user')),
             is_active INTEGER NOT NULL DEFAULT 1 CHECK (is_active IN (0, 1)),
             created_at TEXT NOT NULL,
             updated_at TEXT NOT NULL
@@ -82,13 +86,61 @@ def _ensure_user_roles(connection: sqlite3.Connection) -> None:
             id, username, password_hash, role, is_active, created_at, updated_at
         )
         SELECT id, username, password_hash, role, is_active, created_at, updated_at
-        FROM users;
+        FROM users
+        WHERE role IN ('admin', 'business_user');
 
         DROP TABLE users;
         ALTER TABLE users_new RENAME TO users;
         """
     )
     connection.execute("PRAGMA foreign_keys = ON")
+
+
+def _delete_users_by_role(
+    connection: sqlite3.Connection,
+    roles: tuple[str, ...],
+) -> None:
+    placeholders = ", ".join("?" for _ in roles)
+    rows = connection.execute(
+        f"SELECT id FROM users WHERE role IN ({placeholders})",
+        roles,
+    ).fetchall()
+    user_ids = [row["id"] for row in rows]
+    if not user_ids:
+        return
+
+    id_placeholders = ", ".join("?" for _ in user_ids)
+    if _table_exists(connection, "auth_sessions"):
+        connection.execute(
+            f"DELETE FROM auth_sessions WHERE user_id IN ({id_placeholders})",
+            user_ids,
+        )
+    if _table_exists(connection, "chat_conversations"):
+        if _table_exists(connection, "chat_messages"):
+            conversation_rows = connection.execute(
+                f"SELECT id FROM chat_conversations WHERE user_id IN ({id_placeholders})",
+                user_ids,
+            ).fetchall()
+            conversation_ids = [row["id"] for row in conversation_rows]
+            if conversation_ids:
+                conversation_placeholders = ", ".join("?" for _ in conversation_ids)
+                connection.execute(
+                    f"DELETE FROM chat_messages WHERE conversation_id IN ({conversation_placeholders})",
+                    conversation_ids,
+                )
+        connection.execute(
+            f"DELETE FROM chat_conversations WHERE user_id IN ({id_placeholders})",
+            user_ids,
+        )
+    if _table_exists(connection, "contract_review_jobs"):
+        connection.execute(
+            f"DELETE FROM contract_review_jobs WHERE user_id IN ({id_placeholders})",
+            user_ids,
+        )
+    connection.execute(
+        f"DELETE FROM users WHERE id IN ({id_placeholders})",
+        user_ids,
+    )
 
 
 def _ensure_import_batch_id(connection: sqlite3.Connection) -> None:
@@ -189,6 +241,54 @@ def _ensure_chat_history(connection: sqlite3.Connection) -> None:
         )
 
 
+def _ensure_contract_review_jobs(connection: sqlite3.Connection) -> None:
+    connection.executescript(
+        """
+        CREATE TABLE IF NOT EXISTS contract_review_jobs (
+            id TEXT PRIMARY KEY,
+            user_id TEXT NOT NULL,
+            file_name TEXT NOT NULL,
+            file_path TEXT NOT NULL,
+            status TEXT NOT NULL CHECK (status IN ('queued', 'running', 'completed', 'failed')),
+            document_kind TEXT,
+            result_json TEXT,
+            error_message TEXT,
+            created_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL,
+            completed_at TEXT,
+            FOREIGN KEY (user_id) REFERENCES users(id)
+        );
+
+        CREATE INDEX IF NOT EXISTS idx_contract_review_jobs_user_id
+        ON contract_review_jobs(user_id);
+
+        CREATE INDEX IF NOT EXISTS idx_contract_review_jobs_status
+        ON contract_review_jobs(status);
+        """
+    )
+    columns = _get_columns(connection, "contract_review_jobs")
+    if columns and "document_kind" not in columns:
+        connection.execute("ALTER TABLE contract_review_jobs ADD COLUMN document_kind TEXT")
+    if columns and "result_json" not in columns:
+        connection.execute("ALTER TABLE contract_review_jobs ADD COLUMN result_json TEXT")
+    if columns and "error_message" not in columns:
+        connection.execute("ALTER TABLE contract_review_jobs ADD COLUMN error_message TEXT")
+    if columns and "completed_at" not in columns:
+        connection.execute("ALTER TABLE contract_review_jobs ADD COLUMN completed_at TEXT")
+
+
 def _get_columns(connection: sqlite3.Connection, table_name: str) -> set[str]:
     rows = connection.execute(f"PRAGMA table_info({table_name})").fetchall()
     return {row["name"] for row in rows}
+
+
+def _table_exists(connection: sqlite3.Connection, table_name: str) -> bool:
+    row = connection.execute(
+        """
+        SELECT 1
+        FROM sqlite_master
+        WHERE type = 'table' AND name = ?
+        """,
+        (table_name,),
+    ).fetchone()
+    return row is not None

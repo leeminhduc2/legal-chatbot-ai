@@ -6,32 +6,24 @@ import toast from 'react-hot-toast';
 import logo from '../assets/logo.png';
 import './LoginPage.css';
 
-export default function LoginPage({ initialMode = 'login' }) {
+export default function LoginPage() {
   const { t } = useTranslation();
-  const { login, register, loginAsGuest } = useAuth();
+  const { login, loginAsGuest } = useAuth();
   const navigate = useNavigate();
-  const [mode, setMode] = useState(initialMode);
-  const [form, setForm] = useState({ username: '', password: '', confirmPassword: '' });
+  const [form, setForm] = useState({ username: '', password: '' });
   const [busy, setBusy] = useState(false);
-  const isRegister = mode === 'register';
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!form.username || !form.password) return;
-    if (isRegister && form.password !== form.confirmPassword) {
-      toast.error(t('login.password_mismatch'));
-      return;
-    }
 
     setBusy(true);
     try {
-      const user = isRegister
-        ? await register(form.username, form.password)
-        : await login(form.username, form.password);
-      toast.success(isRegister ? t('login.register_success') : t('login.success'));
-      navigate(user.role === 'admin' ? '/admin' : isRegister ? '/chat' : '/');
+      const user = await login(form.username, form.password);
+      toast.success(t('login.success'));
+      navigate(user.role === 'admin' ? '/admin' : '/');
     } catch (err) {
-      toast.error(err.message || (isRegister ? t('login.register_error') : t('login.error')));
+      toast.error(err.message || t('login.error'));
     } finally {
       setBusy(false);
     }
@@ -40,11 +32,6 @@ export default function LoginPage({ initialMode = 'login' }) {
   const handleGuest = () => {
     loginAsGuest();
     navigate('/');
-  };
-
-  const toggleMode = () => {
-    setMode(isRegister ? 'login' : 'register');
-    setForm({ username: '', password: '', confirmPassword: '' });
   };
 
   return (
@@ -61,10 +48,10 @@ export default function LoginPage({ initialMode = 'login' }) {
         </div>
 
         <h1 className="login-title">
-          {t(isRegister ? 'login.register_title' : 'login.title')}
+          {t('login.title')}
         </h1>
         <p className="login-subtitle">
-          {t(isRegister ? 'login.register_subtitle' : 'login.subtitle')}
+          {t('login.subtitle')}
         </p>
 
         <div className="form-group">
@@ -86,33 +73,16 @@ export default function LoginPage({ initialMode = 'login' }) {
             type="password"
             value={form.password}
             onChange={(e) => setForm({ ...form, password: e.target.value })}
-            autoComplete={isRegister ? 'new-password' : 'current-password'}
+            autoComplete="current-password"
           />
         </div>
 
-        {isRegister && (
-          <div className="form-group">
-            <label htmlFor="login-confirm-password">{t('login.confirm_password')}</label>
-            <input
-              id="login-confirm-password"
-              type="password"
-              value={form.confirmPassword}
-              onChange={(e) => setForm({ ...form, confirmPassword: e.target.value })}
-              autoComplete="new-password"
-            />
-          </div>
-        )}
-
         <button type="submit" className="btn btn-primary btn-lg w-full" disabled={busy}>
           {busy ? <span className="spinner" /> : null}
-          {t(isRegister ? 'login.register_submit' : 'login.submit')} -&gt;
+          {t('login.submit')} -&gt;
         </button>
 
         <p className="login-hint">{t('login.hint')}</p>
-
-        <button type="button" className="login-switch" onClick={toggleMode}>
-          {t(isRegister ? 'login.switch_to_login' : 'login.switch_to_register')}
-        </button>
 
         <div className="login-divider">
           <span>{t('login.or')}</span>

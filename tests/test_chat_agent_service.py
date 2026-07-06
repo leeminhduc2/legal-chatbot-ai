@@ -20,8 +20,15 @@ from backend.services.chat_agent_service import (
 
 
 class FakeLLM:
-    def __init__(self, mode: str = MODE_LEGAL_LOOKUP):
+    def __init__(
+        self,
+        mode: str = MODE_LEGAL_LOOKUP,
+        timeline: list[dict[str, str]] | None = None,
+        timeline_raises: bool = False,
+    ):
         self.mode = mode
+        self.timeline = timeline
+        self.timeline_raises = timeline_raises
 
     def classify(self, question: str) -> dict:
         return {
@@ -45,6 +52,11 @@ class FakeLLM:
         expanded_chunk_ids=None,
     ):
         return "Generated answer from supplied evidence."
+
+    def summarize_agent_timeline(self, payload):
+        if self.timeline_raises:
+            raise RuntimeError("timeline failed")
+        return self.timeline or []
 
 
 class FakeRetriever:
@@ -97,7 +109,7 @@ class ChatAgentServiceTest(unittest.TestCase):
         )
         service = self._service(vector_hits=[hit])
 
-        response = service.answer("Dieu 1 quy dinh gi?", user={"role": "free_user"})
+        response = service.answer("Dieu 1 quy dinh gi?", user={"role": "business_user"})
 
         self.assertEqual(response["retrieval_mode"], MODE_LEGAL_LOOKUP)
         self.assertEqual(len(response["citations"]), 1)
@@ -110,7 +122,7 @@ class ChatAgentServiceTest(unittest.TestCase):
     def test_no_citation_returns_insufficient_evidence(self) -> None:
         service = self._service()
 
-        response = service.answer("Khong co trong kho?", user={"role": "free_user"})
+        response = service.answer("Khong co trong kho?", user={"role": "business_user"})
 
         self.assertEqual(response["retrieval_mode"], MODE_INSUFFICIENT_EVIDENCE)
         self.assertEqual(response["citations"], [])
@@ -157,7 +169,7 @@ class ChatAgentServiceTest(unittest.TestCase):
             ],
         )
 
-        response = service.answer("01/2026/QH con hieu luc khong?", user={"role": "free_user"})
+        response = service.answer("01/2026/QH con hieu luc khong?", user={"role": "business_user"})
 
         self.assertEqual(response["retrieval_mode"], MODE_STATUS_BASIC)
         self.assertEqual(response["citations"][0]["document_number"], "01/2026/QH")
@@ -191,7 +203,7 @@ class ChatAgentServiceTest(unittest.TestCase):
 
         response = service.answer(
             "Dieu 1 quy dinh gi?",
-            user={"role": "free_user"},
+            user={"role": "business_user"},
             conversation_context={
                 "summary": "Hoi ve van ban bao hiem truoc do.",
                 "recent_messages": [{"role": "user", "content": "Cau hoi cu"}],
@@ -214,7 +226,7 @@ class ChatAgentServiceTest(unittest.TestCase):
             react_agent_factory=call_all_tools_agent,
         )
 
-        response = service.answer("Khong co citation?", user={"role": "free_user"})
+        response = service.answer("Khong co citation?", user={"role": "business_user"})
 
         self.assertEqual(response["retrieval_mode"], MODE_INSUFFICIENT_EVIDENCE)
         self.assertEqual(response["citations"], [])
@@ -242,7 +254,7 @@ class ChatAgentServiceTest(unittest.TestCase):
             react_agent_factory=timeout_after_retrieval_agent,
         )
 
-        response = service.answer("Dieu 1 quy dinh gi?", user={"role": "free_user"})
+        response = service.answer("Dieu 1 quy dinh gi?", user={"role": "business_user"})
 
         self.assertEqual(response["retrieval_mode"], MODE_LEGAL_LOOKUP)
         self.assertEqual(len(response["citations"]), 1)
@@ -250,6 +262,31 @@ class ChatAgentServiceTest(unittest.TestCase):
             WARNING_AGENT_TIMEOUT_PARTIAL,
             [item["code"] for item in response["warnings"]],
         )
+
+    def test_agent_timeline_uses_llm_summary_when_available(self) -> None:
+        service = self._service(
+            llm=FakeLLM(
+                timeline=[
+                    {
+                        "title": "Tim can cu",
+                        "description": "Da tim thay dieu khoan lien quan.",
+                        "status": "ok",
+                    }
+                ]
+            )
+        )
+
+        response = service.answer("Dieu 1 quy dinh gi?", user={"role": "business_user"})
+
+        self.assertEqual(response["agent_timeline"][0]["title"], "Tim can cu")
+
+    def test_agent_timeline_falls_back_when_llm_summary_fails(self) -> None:
+        service = self._service(llm=FakeLLM(timeline_raises=True))
+
+        response = service.answer("Khong co trong kho?", user={"role": "business_user"})
+
+        self.assertGreaterEqual(len(response["agent_timeline"]), 3)
+        self.assertTrue(response["agent_timeline"][0]["title"].startswith("Hi"))
 
     def test_rrf_merges_duplicate_hits_without_llm_rerank(self) -> None:
         dense = RetrievalHit(

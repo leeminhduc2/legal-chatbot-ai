@@ -6,7 +6,7 @@ import Modal from '../../components/Modal';
 import toast from 'react-hot-toast';
 import './AdminPage.css';
 
-const ROLES = ['admin', 'business_user', 'free_user', 'guest'];
+const ROLES = ['admin', 'business_user'];
 const EMPTY_FORM = { username: '', password: '', role: 'business_user' };
 
 export default function UserManagementPage() {
@@ -140,8 +140,6 @@ export default function UserManagementPage() {
   const roleBadge = {
     admin: 'badge-danger',
     business_user: 'badge-gold',
-    free_user: 'badge-info',
-    guest: 'badge-info',
   };
 
   if (loading) {

@@ -16,6 +16,10 @@
   gap: 16px;
 }
 
+.contract-review-form {
+  max-width: 560px;
+}
+
 .feature-preview h3 {
   margin-bottom: 12px;
 }
@@ -71,6 +75,181 @@
   margin-top: 8px;
   font-size: 13px;
   color: var(--warning);
+}
+
+.badge-muted {
+  background: var(--bg-secondary);
+  color: var(--text-secondary);
+}
+
+.mono-text {
+  font-family: "Cascadia Code", Consolas, monospace;
+  font-size: 12px;
+  word-break: break-all;
+}
+
+.review-error {
+  padding: 12px 14px;
+  border: 1px solid var(--danger);
+  background: var(--danger-bg);
+  color: var(--danger);
+  border-radius: var(--radius-sm);
+  font-size: 14px;
+}
+
+.review-status-bar {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid var(--border-color);
+  background: var(--bg-card);
+  border-radius: var(--radius-sm);
+}
+
+.review-status-bar > div,
+.risk-count-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.review-card-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.review-card-header h3 {
+  font-size: 18px;
+  margin: 0;
+}
+
+.review-summary-card {
+  max-width: 720px;
+}
+
+.risk-count-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.risk-count-item {
+  padding: 10px;
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-sm);
+  background: var(--bg-secondary);
+}
+
+.review-section-title {
+  font-size: 20px;
+  margin-bottom: 12px;
+}
+
+.review-module-grid,
+.review-side-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.review-module-card,
+.review-section-card,
+.review-info-card {
+  min-width: 0;
+}
+
+.review-section-list {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.review-content-preview {
+  margin-bottom: 12px;
+  color: var(--text-secondary);
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.review-finding {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px 0;
+  border-top: 1px solid var(--border-light);
+}
+
+.review-finding:first-of-type {
+  border-top: none;
+}
+
+.review-finding-top {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.review-finding p {
+  margin: 0;
+  color: var(--text-primary);
+  line-height: 1.6;
+  word-break: break-word;
+}
+
+.review-recommendation {
+  color: var(--text-secondary) !important;
+}
+
+.review-mini-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 13px;
+}
+
+.review-mini-list span {
+  padding: 7px 9px;
+  border-radius: var(--radius-sm);
+  background: var(--bg-secondary);
+  color: var(--text-secondary);
+  word-break: break-word;
+}
+
+.review-trace-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.review-trace-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1.5fr) repeat(3, minmax(0, 0.8fr));
+  gap: 8px;
+  padding: 8px;
+  border-radius: var(--radius-sm);
+  background: var(--bg-secondary);
+  font-size: 13px;
+}
+
+.review-trace-row span,
+.review-trace-row strong {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 760px) {
+  .review-status-bar,
+  .risk-count-grid,
+  .review-module-grid,
+  .review-side-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
 /* Risk */

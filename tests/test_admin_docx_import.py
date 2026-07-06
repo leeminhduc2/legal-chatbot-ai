@@ -205,6 +205,90 @@ class AdminDocxImportTest(unittest.TestCase):
         self.assertEqual(document["signer_title"], "CHU TICH QUOC HOI")
         self.assertEqual(document["signer_name"], "Tran Thanh Man")
 
+    def test_metadata_llm_fills_missing_signature_from_scoped_region(self) -> None:
+        token = self._login("admin", "password")
+        captured = {}
+
+        def fake_infer(**kwargs):
+            captured.update(kwargs)
+            return {
+                "signer_title": "GIAM DOC",
+                "signer_name": "Nguyen Van B",
+                "confidence": {"signer_title": 0.92, "signer_name": 0.9},
+                "evidence": {"signer_name": "Bang ky cuoi van ban"},
+            }
+
+        with patch(
+            "backend.services.document_import_service.infer_metadata_with_deepseek",
+            side_effect=fake_infer,
+        ):
+            response = self.client.post(
+                "/api/v1/admin/documents/import",
+                headers=self._auth_headers(token),
+                data={
+                    "file": (make_docx_file_without_metadata(), "sample.docx"),
+                    **complete_publish_metadata(),
+                    "validity_status": "unknown",
+                },
+                content_type="multipart/form-data",
+            )
+
+        self.assertEqual(response.status_code, 201, response.get_data(as_text=True))
+        self.assertIn("signer_title", captured["requested_fields"])
+        self.assertIn("signer_name", captured["requested_fields"])
+        self.assertIn("signature_block", captured["regions"])
+        detail = self.client.get(
+            f"/api/v1/admin/documents/{response.get_json()['document_id']}",
+            headers=self._auth_headers(token),
+        )
+        self.assertEqual(detail.status_code, 200, detail.get_data(as_text=True))
+        document = detail.get_json()["document"]
+        self.assertEqual(document["signer_title"], "GIAM DOC")
+        self.assertEqual(document["signer_name"], "Nguyen Van B")
+        metadata_json = json.loads(detail.get_json()["version"]["metadata_json"])
+        extraction = metadata_json["metadata_extraction"]
+        self.assertIn("signature_block", extraction["regions_used"])
+        self.assertEqual(extraction["source_by_field"]["signer_name"], "llm")
+
+    def test_metadata_llm_low_confidence_still_needs_review(self) -> None:
+        token = self._login("admin", "password")
+
+        with patch(
+            "backend.services.document_import_service.infer_metadata_with_deepseek",
+            return_value={
+                "effective_date": "2026-01-01",
+                "confidence": {"effective_date": 0.4},
+            },
+        ):
+            response = self.client.post(
+                "/api/v1/admin/documents/import",
+                headers=self._auth_headers(token),
+                data={"file": (make_docx_file(), "sample.docx")},
+                content_type="multipart/form-data",
+            )
+
+        self.assertEqual(response.status_code, 201, response.get_data(as_text=True))
+        self.assertEqual(response.get_json()["document_number"], "01/2026/QD-TEST")
+        self.assertIn("effective_date", response.get_json()["needs_review_fields"])
+
+    def test_metadata_import_succeeds_without_llm_fallback(self) -> None:
+        token = self._login("admin", "password")
+
+        with patch(
+            "backend.services.document_import_service.infer_metadata_with_deepseek",
+            return_value={},
+        ):
+            response = self.client.post(
+                "/api/v1/admin/documents/import",
+                headers=self._auth_headers(token),
+                data={"file": (make_docx_file_without_metadata(), "sample.docx")},
+                content_type="multipart/form-data",
+            )
+
+        self.assertEqual(response.status_code, 201, response.get_data(as_text=True))
+        self.assertTrue(response.get_json()["document_number"].startswith("UNIDENTIFIED-"))
+        self.assertIn("document_number", response.get_json()["needs_review_fields"])
+
     def test_import_with_required_metadata_auto_publishes(self) -> None:
         token = self._login("admin", "password")
         writers = make_fake_writers()

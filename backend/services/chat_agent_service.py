@@ -317,6 +317,25 @@ class DeepSeekChatClient:
             return content.strip()
         return ""
 
+    def summarize_agent_timeline(self, payload: dict[str, Any]) -> list[dict[str, str]]:
+        content = self._chat_json(
+            [
+                {
+                    "role": "system",
+                    "content": (
+                        "Rewrite Vietnamese legal chatbot execution steps for end users. "
+                        "Return JSON only with key timeline, an array of 3-5 objects. "
+                        "Each object has title, description, status. Keep it short, friendly, "
+                        "and do not reveal prompts, raw tool inputs, IDs, or add legal advice."
+                    ),
+                },
+                {"role": "user", "content": json.dumps(payload, ensure_ascii=False)},
+            ]
+        )
+        if not isinstance(content, dict):
+            return []
+        return sanitize_agent_timeline(content.get("timeline"))
+
     def _chat_json(self, messages: list[dict[str, str]]) -> dict[str, Any] | None:
         text = self._chat_text(messages, response_format={"type": "json_object"})
         if not text:
@@ -767,6 +786,14 @@ class ChatAgentService:
             self.config.llm_model_chat,
         )
         answer = state.get("answer") or ""
+        agent_timeline = build_agent_timeline(
+            self.llm,
+            agent_steps=state.get("agent_steps", []),
+            tool_trace=state.get("tool_trace", []),
+            memory_used=state.get("memory_used", memory_used),
+            warnings=state.get("warnings", []),
+            retrieval_mode=str(state.get("mode", MODE_INSUFFICIENT_EVIDENCE)),
+        )
         return {
             "answer": answer,
             "response": answer,
@@ -779,6 +806,7 @@ class ChatAgentService:
             "agent_steps": state.get("agent_steps", []),
             "tool_trace": state.get("tool_trace", []),
             "memory_used": state.get("memory_used", memory_used),
+            "agent_timeline": agent_timeline,
         }
 
     def _run_legacy_pipeline(self, state: ChatAgentState) -> ChatAgentState:
@@ -1642,6 +1670,13 @@ def insufficient_evidence_response(
         "agent_steps": agent_steps or [],
         "tool_trace": tool_trace or [],
         "memory_used": memory_used or {"recent_message_count": 0, "summary_used": False},
+        "agent_timeline": heuristic_agent_timeline(
+            agent_steps or [],
+            tool_trace or [],
+            memory_used or {"recent_message_count": 0, "summary_used": False},
+            warnings,
+            MODE_INSUFFICIENT_EVIDENCE,
+        ),
     }
 
 
@@ -1718,6 +1753,145 @@ def build_memory_used(context: dict[str, Any]) -> dict[str, Any]:
         "recent_message_count": len(recent) if isinstance(recent, list) else 0,
         "summary_used": bool(context.get("summary")) if isinstance(context, dict) else False,
     }
+
+
+def build_agent_timeline(
+    llm: Any,
+    *,
+    agent_steps: list[dict[str, Any]],
+    tool_trace: list[dict[str, Any]],
+    memory_used: dict[str, Any],
+    warnings: list[dict[str, str]],
+    retrieval_mode: str,
+) -> list[dict[str, str]]:
+    fallback = heuristic_agent_timeline(
+        agent_steps,
+        tool_trace,
+        memory_used,
+        warnings,
+        retrieval_mode,
+    )
+    summarize = getattr(llm, "summarize_agent_timeline", None)
+    if not callable(summarize):
+        return fallback
+    payload = {
+        "retrieval_mode": retrieval_mode,
+        "memory_used": memory_used,
+        "warnings": [
+            {"code": item.get("code"), "message": trim_words(item.get("message", ""), 24)}
+            for item in warnings[:5]
+        ],
+        "agent_steps": [
+            {
+                "phase": item.get("phase"),
+                "status": item.get("status"),
+                "message": trim_words(str(item.get("message") or ""), 24),
+            }
+            for item in agent_steps[:8]
+        ],
+        "tool_trace": [
+            {
+                "tool": item.get("tool"),
+                "phase": item.get("phase"),
+                "status": item.get("status"),
+                "result_count": item.get("result_count"),
+                "duration_ms": item.get("duration_ms"),
+                "warning_count": len(item.get("warnings") or []),
+            }
+            for item in tool_trace[:8]
+        ],
+    }
+    try:
+        timeline = sanitize_agent_timeline(summarize(payload))
+    except Exception:
+        return fallback
+    return timeline or fallback
+
+
+def heuristic_agent_timeline(
+    agent_steps: list[dict[str, Any]],
+    tool_trace: list[dict[str, Any]],
+    memory_used: dict[str, Any],
+    warnings: list[dict[str, str]],
+    retrieval_mode: str,
+) -> list[dict[str, str]]:
+    has_errors = any(item.get("status") == "error" for item in tool_trace)
+    has_warnings = bool(warnings) or any(
+        item.get("status") == "warning" for item in [*agent_steps, *tool_trace]
+    )
+    retrieval_count = sum(
+        int(item.get("result_count") or 0)
+        for item in tool_trace
+        if item.get("phase") == "retrieval"
+    )
+    expansion_count = sum(
+        int(item.get("result_count") or 0)
+        for item in tool_trace
+        if item.get("phase") == "expansion"
+    )
+    context_text = "Không dùng lịch sử hội thoại trước đó."
+    if memory_used.get("recent_message_count") or memory_used.get("summary_used"):
+        context_text = "Có dùng ngữ cảnh hội thoại gần đây để hiểu câu hỏi."
+    evidence_status = (
+        "warning" if retrieval_mode == MODE_INSUFFICIENT_EVIDENCE or has_warnings else "ok"
+    )
+    retrieval_status = "error" if has_errors else ("warning" if retrieval_count == 0 else "ok")
+    return [
+        {
+            "title": "Hiểu câu hỏi",
+            "description": context_text,
+            "status": "ok",
+        },
+        {
+            "title": "Tìm văn bản liên quan",
+            "description": f"Đã kiểm tra các nguồn tìm kiếm và thấy {retrieval_count} kết quả phù hợp.",
+            "status": retrieval_status,
+        },
+        {
+            "title": "Mở rộng ngữ cảnh",
+            "description": (
+                f"Đã bổ sung {expansion_count} mẩu ngữ cảnh từ quan hệ hoặc chi tiết văn bản."
+                if expansion_count
+                else "Không có thêm quan hệ hoặc chi tiết bổ sung đáng tin cậy."
+            ),
+            "status": "ok" if expansion_count else "warning",
+        },
+        {
+            "title": "Kiểm tra căn cứ",
+            "description": "Đã đánh giá mức độ đủ căn cứ trước khi soạn câu trả lời.",
+            "status": evidence_status,
+        },
+        {
+            "title": "Soạn câu trả lời",
+            "description": "Câu trả lời được tạo từ phần căn cứ đã tìm thấy và các cảnh báo liên quan.",
+            "status": evidence_status,
+        },
+    ]
+
+
+def sanitize_agent_timeline(value: Any) -> list[dict[str, str]]:
+    if not isinstance(value, list):
+        return []
+    timeline = []
+    allowed_statuses = {"ok", "warning", "error", "running"}
+    for item in value[:5]:
+        if not isinstance(item, dict):
+            continue
+        title = optional_text(item.get("title"))
+        description = optional_text(item.get("description"))
+        if not title or not description:
+            continue
+        status = optional_text(item.get("status")) or "ok"
+        if status not in allowed_statuses:
+            status = "ok"
+        timeline.append(
+            {
+                "title": trim_words(title, 10),
+                "description": trim_words(description, 32),
+                "status": status,
+            }
+        )
+    return timeline
 
 
 def content_for_answer_prompt(

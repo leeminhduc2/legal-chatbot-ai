@@ -30,9 +30,7 @@
     "confirm_password": "Xác nhận mật khẩu",
     "submit": "Đăng nhập",
     "register_submit": "Đăng ký",
-    "hint": "Business User có thể sử dụng tính năng rà soát văn bản và nhiều tính năng đặc biệt hơn nữa",
-    "switch_to_register": "Chưa có tài khoản? Đăng ký",
-    "switch_to_login": "Đã có tài khoản? Đăng nhập",
+    "hint": "Tai khoan do quan tri vien cap. Hay lien he admin neu ban can quyen truy cap.",
     "or": "HOẶC",
     "guest": "Tiếp tục với tư cách khách",
     "error": "Đăng nhập thất bại",
@@ -82,7 +80,7 @@
     },
     "locked": {
       "free": "Yêu cầu nâng cấp lên Business User",
-      "guest": "Đăng ký tài khoản để tiếp tục"
+      "guest": "Lien he quan tri vien de duoc cap tai khoan"
     },
     "risk_alerts": {
       "title": "Cảnh báo rủi ro",
@@ -105,6 +103,7 @@
     "warnings": "Cảnh báo",
     "agent_steps": "Các bước agent",
     "memory_used": "Tin nhắn dùng làm ngữ cảnh",
+    "technical_steps": "Trace ky thuat",
     "summary_used": "đã dùng tóm tắt",
     "results": "kết quả",
     "typing": "Đang trả lời...",
@@ -112,7 +111,7 @@
     "empty_desc": "Hỏi bất kỳ câu hỏi nào về pháp luật bảo hiểm Việt Nam.",
     "history_loading": "Đang tải lịch sử...",
     "history_error": "Không thể tải lịch sử chat",
-    "login_for_history": "Đăng nhập hoặc đăng ký để lưu lịch sử chat.",
+    "login_for_history": "Dang nhap bang tai khoan do admin cap de luu lich su chat.",
     "send_error": "Không thể gửi tin nhắn.",
     "no_response": "Chưa có phản hồi."
   },
@@ -137,7 +136,6 @@
   "roles": {
     "admin": "Quản trị viên",
     "business_user": "Doanh nghiệp",
-    "free_user": "Free User",
     "guest": "Khách"
   },
   "admin": {

@@ -100,6 +100,7 @@ export default function ChatPage() {
         agent_steps: data.agent_steps || [],
         tool_trace: data.tool_trace || [],
         memory_used: data.memory_used || null,
+        agent_timeline: data.agent_timeline || [],
       };
       setMessages((prev) => [...prev, aiMsg]);
       if (data.conversation_id) {

@@ -14,9 +14,8 @@ from backend.models.database import get_connection, row_to_dict
 
 ROLE_ADMIN = "admin"
 ROLE_BUSINESS_USER = "business_user"
-ROLE_FREE_USER = "free_user"
 ROLE_GUEST = "guest"
-VALID_ROLES = {ROLE_ADMIN, ROLE_BUSINESS_USER, ROLE_FREE_USER, ROLE_GUEST}
+VALID_ROLES = {ROLE_ADMIN, ROLE_BUSINESS_USER}
 
 
 class AuthError(Exception):
@@ -67,10 +66,6 @@ class AuthService:
         if user is None:
             raise RuntimeError("Failed to load user after creation.")
         return sanitize_user(user)
-
-    def register_user(self, username: str, password: str) -> dict[str, Any]:
-        self.create_user(username=username, password=password, role=ROLE_FREE_USER)
-        return self.login(username=normalize_username(username), password=password)
 
     def list_users(self) -> list[dict[str, Any]]:
         with get_connection(self.db_path) as connection:

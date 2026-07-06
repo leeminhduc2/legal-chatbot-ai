@@ -30,9 +30,7 @@
     "confirm_password": "Confirm Password",
     "submit": "Sign In",
     "register_submit": "Register",
-    "hint": "Business users can use the document review feature and even more specialized features.",
-    "switch_to_register": "Need an account? Register",
-    "switch_to_login": "Already have an account? Sign in",
+    "hint": "Accounts are issued by administrators. Contact an admin if you need access.",
     "or": "OR",
     "guest": "Continue as Guest",
     "error": "Login failed",
@@ -82,7 +80,7 @@
     },
     "locked": {
       "free": "Upgrade to Business User required",
-      "guest": "Register an account to continue"
+      "guest": "Contact an administrator for an account"
     },
     "risk_alerts": {
       "title": "Risk Alerts",
@@ -105,6 +103,7 @@
     "warnings": "Warnings",
     "agent_steps": "Agent steps",
     "memory_used": "Memory messages",
+    "technical_steps": "Technical trace",
     "summary_used": "summary used",
     "results": "results",
     "typing": "Typing...",
@@ -112,7 +111,7 @@
     "empty_desc": "Ask any question about Vietnamese insurance law.",
     "history_loading": "Loading history...",
     "history_error": "Could not load chat history",
-    "login_for_history": "Sign in or register to save chat history.",
+    "login_for_history": "Sign in with an administrator-issued account to save chat history.",
     "send_error": "Could not send the message.",
     "no_response": "No response."
   },
@@ -137,7 +136,6 @@
   "roles": {
     "admin": "Administrator",
     "business_user": "Business User",
-    "free_user": "Free User",
     "guest": "Guest"
   },
   "admin": {

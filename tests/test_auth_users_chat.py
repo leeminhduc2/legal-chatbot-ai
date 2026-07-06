@@ -1,13 +1,15 @@
 from __future__ import annotations
 
 import os
+import sqlite3
 import tempfile
 import unittest
 from pathlib import Path
 from unittest.mock import patch
 
 from backend.config import Config
-from backend.services.auth_service import ROLE_BUSINESS_USER, ROLE_FREE_USER
+from backend.models.database import get_connection, init_db
+from backend.services.auth_service import ROLE_BUSINESS_USER
 
 
 class AuthUsersChatTest(unittest.TestCase):
@@ -33,48 +35,16 @@ class AuthUsersChatTest(unittest.TestCase):
         os.chdir(self.old_cwd)
         self.temp_dir.cleanup()
 
-    def test_register_creates_active_free_user_and_token(self) -> None:
+    def test_register_endpoint_is_removed(self) -> None:
         response = self.client.post(
             "/api/v1/auth/register",
             json={"username": "free-user", "password": "secret1"},
         )
 
-        self.assertEqual(response.status_code, 201, response.get_data(as_text=True))
-        payload = response.get_json()
-        self.assertEqual(payload["user"]["role"], ROLE_FREE_USER)
-        self.assertTrue(payload["user"]["is_active"])
-        self.assertIn("created_at", payload["user"])
+        self.assertEqual(response.status_code, 404)
 
-        me = self.client.get(
-            "/api/v1/auth/me",
-            headers=self._auth_headers(payload["access_token"]),
-        )
-        self.assertEqual(me.status_code, 200, me.get_data(as_text=True))
-        self.assertEqual(me.get_json()["user"]["username"], "free-user")
-
-    def test_register_rejects_duplicate_and_short_password(self) -> None:
-        created = self.client.post(
-            "/api/v1/auth/register",
-            json={"username": "free-user", "password": "secret1"},
-        )
-        self.assertEqual(created.status_code, 201, created.get_data(as_text=True))
-
-        duplicate = self.client.post(
-            "/api/v1/auth/register",
-            json={"username": "free-user", "password": "secret1"},
-        )
-        self.assertEqual(duplicate.status_code, 409)
-        self.assertEqual(duplicate.get_json()["error"]["code"], "USERNAME_EXISTS")
-
-        short_password = self.client.post(
-            "/api/v1/auth/register",
-            json={"username": "another-user", "password": "123"},
-        )
-        self.assertEqual(short_password.status_code, 400)
-        self.assertEqual(short_password.get_json()["error"]["code"], "INVALID_PASSWORD")
-
-    def test_free_user_chat_persists_conversation_history(self) -> None:
-        token = self._register("free-user", "secret1")
+    def test_business_user_chat_persists_conversation_history(self) -> None:
+        token = self._create_business_user_and_login("business-user", "secret1")
 
         with patch("backend.api.chat_routes._get_chat_agent_service") as agent:
             agent.return_value = FakeChatAgentService()
@@ -105,6 +75,7 @@ class AuthUsersChatTest(unittest.TestCase):
         self.assertEqual(messages[1]["warnings"][0]["code"], "LOW_RELEVANCE")
         self.assertEqual(messages[1]["agent_steps"][0]["phase"], "retrieval")
         self.assertEqual(messages[1]["tool_trace"][0]["tool"], "vector_search")
+        self.assertEqual(messages[1]["agent_timeline"][0]["title"], "Tim can cu")
 
     def test_guest_chat_does_not_persist_history(self) -> None:
         with patch("backend.api.chat_routes._get_chat_agent_service") as agent:
@@ -118,7 +89,7 @@ class AuthUsersChatTest(unittest.TestCase):
         self.assertEqual(conversations.status_code, 401)
 
     def test_authenticated_chat_passes_recent_memory_and_summary(self) -> None:
-        token = self._register("free-user", "secret1")
+        token = self._create_business_user_and_login("business-user", "secret1")
         fake_agent = FakeChatAgentService()
 
         with patch("backend.api.chat_routes._get_chat_agent_service") as agent:
@@ -161,13 +132,21 @@ class AuthUsersChatTest(unittest.TestCase):
         user = create.get_json()["user"]
         self.assertEqual(user["role"], ROLE_BUSINESS_USER)
 
+        invalid_role = self.client.patch(
+            f"/api/v1/admin/users/{user['id']}",
+            headers=self._auth_headers(admin_token),
+            json={"role": "free_user"},
+        )
+        self.assertEqual(invalid_role.status_code, 400)
+        self.assertEqual(invalid_role.get_json()["error"]["code"], "INVALID_ROLE")
+
         update = self.client.patch(
             f"/api/v1/admin/users/{user['id']}",
             headers=self._auth_headers(admin_token),
-            json={"role": ROLE_FREE_USER, "is_active": False},
+            json={"is_active": False},
         )
         self.assertEqual(update.status_code, 200, update.get_data(as_text=True))
-        self.assertEqual(update.get_json()["user"]["role"], ROLE_FREE_USER)
+        self.assertEqual(update.get_json()["user"]["role"], ROLE_BUSINESS_USER)
         self.assertFalse(update.get_json()["user"]["is_active"])
 
         login = self.client.post(
@@ -177,7 +156,7 @@ class AuthUsersChatTest(unittest.TestCase):
         self.assertEqual(login.status_code, 403)
 
     def test_non_admin_cannot_manage_users_and_admin_cannot_self_demote(self) -> None:
-        user_token = self._register("free-user", "secret1")
+        user_token = self._create_business_user_and_login("business-user", "secret1")
         forbidden = self.client.get(
             "/api/v1/admin/users",
             headers=self._auth_headers(user_token),
@@ -191,18 +170,115 @@ class AuthUsersChatTest(unittest.TestCase):
         demote = self.client.patch(
             f"/api/v1/admin/users/{admin_id}",
             headers=self._auth_headers(admin_token),
-            json={"role": ROLE_FREE_USER},
+            json={"role": ROLE_BUSINESS_USER},
         )
         self.assertEqual(demote.status_code, 400)
         self.assertEqual(demote.get_json()["error"]["code"], "CANNOT_CHANGE_OWN_ADMIN")
 
-    def _register(self, username: str, password: str) -> str:
+    def test_init_db_deletes_legacy_free_users_and_dependents(self) -> None:
+        legacy_db = str(Path(self.temp_dir.name) / "legacy.sqlite3")
+        connection = sqlite3.connect(legacy_db)
+        try:
+            connection.executescript(
+                """
+                CREATE TABLE users (
+                    id TEXT PRIMARY KEY,
+                    username TEXT NOT NULL UNIQUE,
+                    password_hash TEXT NOT NULL,
+                    role TEXT NOT NULL CHECK (role IN ('admin', 'business_user', 'free_user', 'guest')),
+                    is_active INTEGER NOT NULL DEFAULT 1 CHECK (is_active IN (0, 1)),
+                    created_at TEXT NOT NULL,
+                    updated_at TEXT NOT NULL
+                );
+                CREATE TABLE auth_sessions (
+                    id TEXT PRIMARY KEY,
+                    user_id TEXT NOT NULL,
+                    token_hash TEXT NOT NULL UNIQUE,
+                    expires_at TEXT NOT NULL,
+                    revoked_at TEXT,
+                    created_at TEXT NOT NULL
+                );
+                CREATE TABLE chat_conversations (
+                    id TEXT PRIMARY KEY,
+                    user_id TEXT NOT NULL,
+                    title TEXT,
+                    created_at TEXT NOT NULL,
+                    updated_at TEXT NOT NULL
+                );
+                CREATE TABLE chat_messages (
+                    id TEXT PRIMARY KEY,
+                    conversation_id TEXT NOT NULL,
+                    role TEXT NOT NULL,
+                    content TEXT NOT NULL,
+                    created_at TEXT NOT NULL
+                );
+                CREATE TABLE contract_review_jobs (
+                    id TEXT PRIMARY KEY,
+                    user_id TEXT NOT NULL,
+                    file_name TEXT NOT NULL,
+                    file_path TEXT NOT NULL,
+                    status TEXT NOT NULL,
+                    created_at TEXT NOT NULL,
+                    updated_at TEXT NOT NULL
+                );
+                INSERT INTO users VALUES ('admin-id', 'admin', 'hash', 'admin', 1, 'now', 'now');
+                INSERT INTO users VALUES ('free-id', 'free-user', 'hash', 'free_user', 1, 'now', 'now');
+                INSERT INTO auth_sessions VALUES ('session-id', 'free-id', 'token', '2999', NULL, 'now');
+                INSERT INTO chat_conversations VALUES ('conv-id', 'free-id', 'title', 'now', 'now');
+                INSERT INTO chat_messages VALUES ('msg-id', 'conv-id', 'assistant', 'hello', 'now');
+                INSERT INTO contract_review_jobs VALUES ('job-id', 'free-id', 'file.docx', 'file.docx', 'completed', 'now', 'now');
+                """
+            )
+            connection.commit()
+        finally:
+            connection.close()
+
+        init_db(legacy_db)
+
+        with get_connection(legacy_db) as connection:
+            roles = [
+                row["role"]
+                for row in connection.execute("SELECT role FROM users").fetchall()
+            ]
+            self.assertEqual(roles, ["admin"])
+            self.assertEqual(
+                connection.execute("SELECT COUNT(*) FROM auth_sessions").fetchone()[0],
+                0,
+            )
+            self.assertEqual(
+                connection.execute("SELECT COUNT(*) FROM chat_conversations").fetchone()[0],
+                0,
+            )
+            self.assertEqual(
+                connection.execute("SELECT COUNT(*) FROM chat_messages").fetchone()[0],
+                0,
+            )
+            self.assertEqual(
+                connection.execute("SELECT COUNT(*) FROM contract_review_jobs").fetchone()[0],
+                0,
+            )
+            table_sql = connection.execute(
+                """
+                SELECT sql
+                FROM sqlite_master
+                WHERE type = 'table' AND name = 'users'
+                """
+            ).fetchone()["sql"]
+            self.assertNotIn("free_user", table_sql)
+
+    def _create_business_user_and_login(self, username: str, password: str) -> str:
+        admin_token = self._login("admin", "password")
         response = self.client.post(
-            "/api/v1/auth/register",
-            json={"username": username, "password": password},
+            "/api/v1/admin/users",
+            headers=self._auth_headers(admin_token),
+            json={
+                "username": username,
+                "password": password,
+                "role": ROLE_BUSINESS_USER,
+            },
         )
         self.assertEqual(response.status_code, 201, response.get_data(as_text=True))
-        return response.get_json()["access_token"]
+        return self._login(username, password)
 
     def _login(self, username: str, password: str) -> str:
         response = self.client.post(
@@ -275,6 +351,13 @@ class FakeChatAgentService:
                 ),
                 "summary_used": bool((conversation_context or {}).get("summary")),
             },
+            "agent_timeline": [
+                {
+                    "title": "Tim can cu",
+                    "description": "Da tim thay van ban lien quan.",
+                    "status": "ok",
+                }
+            ],
         }
 
 
