@@ -151,6 +151,8 @@ def _ensure_chat_history(connection: sqlite3.Connection) -> None:
             id TEXT PRIMARY KEY,
             user_id TEXT NOT NULL,
             title TEXT,
+            summary TEXT,
+            summary_updated_at TEXT,
             created_at TEXT NOT NULL,
             updated_at TEXT NOT NULL,
             FOREIGN KEY (user_id) REFERENCES users(id)
@@ -166,6 +168,7 @@ def _ensure_chat_history(connection: sqlite3.Connection) -> None:
             content TEXT NOT NULL,
             citations_json TEXT,
             confidence REAL,
+            metadata_json TEXT,
             created_at TEXT NOT NULL,
             FOREIGN KEY (conversation_id) REFERENCES chat_conversations(id) ON DELETE CASCADE
         );
@@ -174,6 +177,16 @@ def _ensure_chat_history(connection: sqlite3.Connection) -> None:
         ON chat_messages(conversation_id);
         """
     )
+    columns = _get_columns(connection, "chat_messages")
+    if columns and "metadata_json" not in columns:
+        connection.execute("ALTER TABLE chat_messages ADD COLUMN metadata_json TEXT")
+    conversation_columns = _get_columns(connection, "chat_conversations")
+    if conversation_columns and "summary" not in conversation_columns:
+        connection.execute("ALTER TABLE chat_conversations ADD COLUMN summary TEXT")
+    if conversation_columns and "summary_updated_at" not in conversation_columns:
+        connection.execute(
+            "ALTER TABLE chat_conversations ADD COLUMN summary_updated_at TEXT"
+        )
 
 
 def _get_columns(connection: sqlite3.Connection, table_name: str) -> set[str]:

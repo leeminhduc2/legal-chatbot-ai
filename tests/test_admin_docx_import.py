@@ -143,6 +143,45 @@ class AdminDocxImportTest(unittest.TestCase):
         )
         self.assertEqual(article["content"], "Dieu 6. Noi dung khong co khoan.")
 
+    def test_amended_article_quote_does_not_create_source_article_chunk(self) -> None:
+        from backend.services.document_import_service import regex_chunk_text
+
+        metadata = {
+            "document_number": "02/2026/QD-TEST",
+            "document_title": "Van ban sua doi",
+            "validity_status": "active",
+        }
+        text = (
+            "Dieu 1. Sua doi, bo sung mot so dieu\n"
+            "3. Sua doi, bo sung mot so khoan cua Dieu 6 nhu sau:\n"
+            "a) Sua doi, bo sung khoan 1 nhu sau:\n"
+            "\u201c1. Ban hanh theo tham quyen hoac trinh cap co tham quyen ban hanh chinh sach;\u201d;\n"
+            "b) Sua doi, bo sung khoan 3 va khoan 4 nhu sau:\n"
+            "\u201c3. Ban hanh quy dinh, quy trinh, huong dan chuyen mon;\n"
+            "4. Ban hanh cac giai phap nham bao dam can doi quy;\u201d.\n"
+            "4. Sua doi, bo sung Dieu 7a nhu sau:\n"
+            "\u201c\u0110i\u1ec1u 7a. Trach nhiem cua Bo Lao dong - Thuong binh va Xa hoi\n"
+            "1. Chi dao, huong dan to chuc thuc hien viec xac dinh doi tuong.\n"
+            "2. Thanh tra, kiem tra viec thuc hien quy dinh cua phap luat.\u201d.\n"
+        )
+
+        chunks = regex_chunk_text(
+            text,
+            document_id="doc-2",
+            import_batch_id="batch-2",
+            metadata=metadata,
+        )
+
+        self.assertEqual(
+            [(chunk["article_number"], chunk["clause_number"]) for chunk in chunks],
+            [("1", "3"), ("1", "4")],
+        )
+        self.assertFalse(any(chunk["article_number"] == "7a" for chunk in chunks))
+        clause_4 = next(chunk for chunk in chunks if chunk["clause_number"] == "4")
+        self.assertIn("\u0110i\u1ec1u 7a. Trach nhiem", clause_4["content"])
+        self.assertIn("1. Chi dao", clause_4["content"])
+        self.assertIn("2. Thanh tra", clause_4["content"])
+
     def test_import_extracts_signature_from_last_table(self) -> None:
         token = self._login("admin", "password")
         response = self.client.post(

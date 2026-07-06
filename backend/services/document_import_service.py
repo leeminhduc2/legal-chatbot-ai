@@ -2082,18 +2082,27 @@ def normalize_llm_chunks(
     return normalized
 
 
+_ARTICLE_HEADING_RE = re.compile(
+    r"^\s*(?:\u0110i\u1ec1u|Dieu)\s+([0-9]+[a-zA-Z]?)\.?\s*(.*)$",
+    re.IGNORECASE,
+)
+_CLAUSE_HEADING_RE = re.compile(r"^\s*(\d+)\.\s+")
+_AMENDMENT_QUOTE_INTRO_RE = re.compile(
+    r"(?:nh\u01b0|nhu)\s+sau\s*:\s*[\u201c\"]?\s*$",
+    re.IGNORECASE,
+)
+_QUOTE_OPEN_CHARS = {"\u201c", "\u2018", "\u00ab"}
+_QUOTE_CLOSE_CHARS = {"\u201d", "\u2019", "\u00bb"}
+_QUOTE_START_CHARS = tuple(sorted([*_QUOTE_OPEN_CHARS, '"']))
+
+
 def regex_chunk_text(
     text: str,
     document_id: str,
     import_batch_id: str,
     metadata: dict[str, Any],
 ) -> list[dict[str, Any]]:
-    article_matches = list(
-        re.finditer(
-            r"(?mi)^\s*(?:Điều|Dieu)\s+([0-9]+[a-zA-Z]?)\.?\s*(.*)$",
-            text,
-        )
-    )
+    article_matches = _find_article_boundaries(text)
     if not article_matches:
         return [
             build_chunk_record(
@@ -2109,15 +2118,13 @@ def regex_chunk_text(
         ]
 
     chunks: list[dict[str, Any]] = []
-    for article_index, match in enumerate(article_matches, start=1):
-        start = match.start()
+    for article_index, (start, article_number) in enumerate(article_matches):
         end = (
-            article_matches[article_index].start()
-            if article_index < len(article_matches)
+            article_matches[article_index + 1][0]
+            if article_index + 1 < len(article_matches)
             else len(text)
         )
         article_text = text[start:end].strip()
-        article_number = match.group(1)
         clause_chunks = split_article_clauses(article_text)
         if not clause_chunks:
             chunks.append(
@@ -2150,15 +2157,80 @@ def regex_chunk_text(
 
 
 def split_article_clauses(article_text: str) -> list[tuple[str, str]]:
-    matches = list(re.finditer(r"(?m)^\s*(\d+)\.\s+", article_text))
+    matches = _find_clause_boundaries(article_text)
     if len(matches) < 2:
         return []
     clauses = []
-    for index, match in enumerate(matches):
-        start = match.start()
-        end = matches[index + 1].start() if index + 1 < len(matches) else len(article_text)
-        clauses.append((match.group(1), article_text[start:end].strip()))
+    for index, (start, clause_number) in enumerate(matches):
+        end = matches[index + 1][0] if index + 1 < len(matches) else len(article_text)
+        clauses.append((clause_number, article_text[start:end].strip()))
     return clauses
+
+
+def _find_article_boundaries(text: str) -> list[tuple[int, str]]:
+    matches = []
+    for line_start, _line_end, line_text, protected in _iter_chunk_boundary_lines(text):
+        if protected:
+            continue
+        match = _ARTICLE_HEADING_RE.match(line_text)
+        if match:
+            matches.append((line_start, match.group(1)))
+    return matches
+
+
+def _find_clause_boundaries(text: str) -> list[tuple[int, str]]:
+    matches = []
+    for line_start, _line_end, line_text, protected in _iter_chunk_boundary_lines(text):
+        if protected:
+            continue
+        match = _CLAUSE_HEADING_RE.match(line_text)
+        if match:
+            matches.append((line_start, match.group(1)))
+    return matches
+
+
+def _iter_chunk_boundary_lines(text: str):
+    offset = 0
+    in_quote = False
+    in_amendment_quote = False
+    for line in text.splitlines(keepends=True):
+        stripped = line.lstrip()
+        protected = (
+            in_quote
+            or in_amendment_quote
+            or stripped.startswith(_QUOTE_START_CHARS)
+        )
+        line_start = offset
+        offset += len(line)
+        yield line_start, offset, line, protected
+
+        begins_replacement_quote = bool(
+            _AMENDMENT_QUOTE_INTRO_RE.search(line.strip())
+        )
+        quote_after_line = _update_quote_state(line, in_quote)
+        closed_quote = _line_closes_quote(line, in_quote, quote_after_line)
+        if begins_replacement_quote:
+            in_amendment_quote = quote_after_line or not closed_quote
+        elif in_amendment_quote and closed_quote and not quote_after_line:
+            in_amendment_quote = False
+        in_quote = quote_after_line
+
+
+def _update_quote_state(line: str, in_quote: bool) -> bool:
+    for char in line:
+        if char == '"':
+            in_quote = not in_quote
+        elif char in _QUOTE_OPEN_CHARS:
+            in_quote = True
+        elif char in _QUOTE_CLOSE_CHARS:
+            in_quote = False
+    return in_quote
+
+
+def _line_closes_quote(line: str, was_in_quote: bool, quote_after_line: bool) -> bool:
+    return any(char in line for char in _QUOTE_CLOSE_CHARS) or (
+        was_in_quote and '"' in line and not quote_after_line
+    )
 
 
 def build_chunk_record(

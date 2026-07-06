@@ -57,6 +57,26 @@
   word-break: break-word;
 }
 
+.msg-warnings {
+  margin-top: 12px;
+  padding: 10px 12px;
+  border: 1px solid rgba(180, 83, 9, 0.25);
+  background: rgba(180, 83, 9, 0.08);
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+  font-size: 13px;
+}
+
+.warnings-title {
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 4px;
+}
+
+.warning-item + .warning-item {
+  margin-top: 4px;
+}
+
 /* Citations */
 .msg-citations {
   margin-top: 12px;
@@ -131,6 +151,122 @@
 
 .citation-article {
   color: var(--text-secondary);
+}
+
+/* Agent trace */
+.msg-agent-trace {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border-light);
+}
+
+.agent-trace-toggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  padding: 4px 0;
+  transition: color 0.2s;
+}
+
+.agent-trace-toggle:hover {
+  color: var(--text-primary);
+}
+
+.agent-trace-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.agent-memory,
+.agent-step-item,
+.agent-tool-item {
+  padding: 8px 10px;
+  background: var(--bg-secondary);
+  border-radius: var(--radius-sm);
+  font-size: 12.5px;
+  color: var(--text-secondary);
+}
+
+.agent-step-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.agent-status {
+  min-width: 52px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  text-align: center;
+  font-weight: 700;
+  text-transform: uppercase;
+  font-size: 10px;
+  background: var(--bg-card);
+  color: var(--text-muted);
+}
+
+.agent-status-ok {
+  color: #166534;
+  background: rgba(22, 101, 52, 0.1);
+}
+
+.agent-status-warning,
+.agent-status-error {
+  color: #92400e;
+  background: rgba(146, 64, 14, 0.12);
+}
+
+.agent-status-running {
+  color: var(--text-secondary);
+  background: var(--bg-card);
+}
+
+.agent-phase {
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.agent-message {
+  min-width: 0;
+  word-break: break-word;
+}
+
+.agent-tool-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.agent-tool-name {
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.agent-tool-meta {
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.agent-tool-input {
+  margin-top: 4px;
+  color: var(--text-muted);
+  word-break: break-word;
+}
+
+.agent-tool-warning {
+  margin-top: 4px;
+  color: #92400e;
+  word-break: break-word;
 }
 
 /* Confidence */

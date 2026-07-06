@@ -146,8 +146,17 @@ Delete có guard `delete_artifacts_safely()` để chỉ xóa file trong các th
 
 ```text
 POST /api/v1/chat
-  -> _build_fallback_answer()
-  -> nếu có token hợp lệ:
+  -> _get_optional_user()
+  -> ChatAgentService.answer()
+    -> route_intent
+    -> resolve_exact_status nếu câu hỏi hỏi hiệu lực/trạng thái
+    -> ChromaVectorRetriever.search()
+    -> ElasticsearchBM25Retriever.search()
+    -> FixedNeo4jContextRetriever.enrich()
+    -> fuse_and_rerank()
+    -> evidence_check()
+    -> generate_output()
+  -> nếu có user đăng nhập:
        ChatHistoryService.ensure_conversation()
        ChatHistoryService.add_message(user)
        ChatHistoryService.add_message(assistant)
@@ -157,7 +166,15 @@ Frontend guest mode is temporary and anonymous: it has no access token, is not a
 persisted backend session, cannot open profile pages, and should be routed
 toward login/register when the user wants saved history or account settings.
 
-Route chat hiện chưa gọi retrieval/index thật. Nó trả fallback answer cố định và chỉ lưu lịch sử khi request có Bearer token hợp lệ.
+Route chat hiện đã gọi retrieval thật qua `backend/services/chat_agent_service.py`.
+Guest vẫn được hỏi nhưng không lưu lịch sử. User có Bearer token hợp lệ sẽ được
+lưu conversation/message vào SQLite, gồm answer, citations, confidence, warnings,
+retrieval mode và trace id.
+
+Điểm cần nhớ: chat agent chỉ dùng dữ liệu đã publish. Nếu Chroma/BM25/Neo4j/LLM
+không sẵn sàng hoặc không tìm được citation, response sẽ degrade thành cảnh báo
+hoặc `insufficient_evidence`; backend không được bịa citation hay quan hệ pháp lý
+để lấp khoảng trống dữ liệu.
 
 ## 2. `backend/app.py`
 
@@ -473,9 +490,20 @@ Cách implement:
 
 - Đọc `message`; nếu rỗng trả `MESSAGE_REQUIRED`.
 - Gọi `_get_optional_user()` để nhận user nếu Bearer token hợp lệ.
-- Tạo answer bằng `_build_fallback_answer(message)`.
+- Gọi `_get_chat_agent_service().answer(message, user=..., requested_top_k=...)`.
 - Nếu không có user, trả answer ngay và không lưu DB.
 - Nếu có user, đảm bảo conversation tồn tại, lưu message user và assistant vào SQLite, rồi trả answer kèm conversation info.
+- Assistant message lưu `citations`, `confidence` và `metadata_json` gồm `warnings`, `retrieval_mode`, `trace_id`.
+
+Response từ chat agent có shape chính:
+
+- `answer`/`response`: nội dung trả lời.
+- `query`: câu hỏi gốc.
+- `retrieval_mode`: `legal_lookup`, `status_basic`, `out_of_scope` hoặc `insufficient_evidence`.
+- `confidence`: số đã round 3 chữ số.
+- `warnings`: danh sách cảnh báo có `code`, `message`.
+- `citations`: citation lấy từ chunk/status record.
+- `trace_id`: UUID để nối log với request.
 
 ### `list_conversations()`
 
@@ -519,21 +547,17 @@ Query các conversation của user, sort theo `updated_at DESC`.
 
 Query conversation theo `id` và `user_id`, sau đó query messages theo `created_at ASC`; message được format bằng `format_message()`.
 
-### `_build_fallback_answer(message)`
-
-Trả payload cố định gồm `answer`, `response`, `citations=[]`, `confidence=None`, `query=message`. Đây là placeholder, chưa gọi retrieval.
-
 ### `_get_optional_user()`
 
 Nếu request có Bearer token hợp lệ thì trả user từ `AuthService.get_user_for_token()`, không hợp lệ thì trả `None` thay vì lỗi.
 
-### `_get_auth_service()`, `_get_chat_history_service()`
+### `_get_auth_service()`, `_get_chat_history_service()`, `_get_chat_agent_service()`
 
-Factory service từ app config.
+Factory service từ app config. `ChatAgentService` được cache trong `current_app.extensions["chat_agent_service"]`, nên retriever/client nội bộ có thể tái sử dụng trong vòng đời Flask app.
 
 ### `format_message(message)`
 
-Parse `citations_json`; nếu JSON lỗi thì trả `citations=[]`. Trả object message sạch cho API.
+Parse `citations_json` và `metadata_json`; nếu JSON lỗi thì trả fallback rỗng. Trả object message sạch cho API, đồng thời expose `warnings`, `retrieval_mode`, `trace_id` từ metadata để frontend hiển thị lại lịch sử có cùng ngữ cảnh với response ban đầu.
 
 ### `make_title(message)`
 
@@ -543,7 +567,184 @@ Chuẩn hóa whitespace, cắt title tối đa 60 ký tự, fallback `"Conversat
 
 Trả timestamp UTC ISO.
 
-## 8. `backend/services/auth_service.py`
+## 8. `backend/services/chat_agent_service.py`
+
+Module này là lõi RAG cho `POST /api/v1/chat`. Nó không thay thế publish pipeline:
+chat chỉ đọc các index/bảng đã được publish bởi admin flow.
+
+Luồng xử lý chính:
+
+```text
+ChatAgentService.answer()
+  -> resolve_top_k()
+  -> LangGraph graph nếu cài được langgraph
+       route_intent
+       resolve_exact_status
+       vector_retrieve
+       bm25_retrieve
+       graph_enrich
+       fuse_and_rerank
+       evidence_check
+       generate_output
+  -> nếu thiếu langgraph: _run_without_langgraph() chạy cùng node theo thứ tự trên
+  -> trả answer/response/query/retrieval_mode/confidence/warnings/citations/trace_id
+```
+
+### `ChatAgentState`
+
+`TypedDict` giữ state đi qua từng node: câu hỏi, query đã normalize, role user,
+`top_k`, mode, filters, warnings, status records, vector hits, BM25 hits,
+fused hits, graph context, citations, confidence và answer.
+
+### `ChatLLM`
+
+Protocol cho client LLM. Một implementation phải có:
+
+- `classify(question)`: phân loại intent.
+- `check_evidence(question, mode, hits, status_records)`: kiểm tra bằng chứng.
+- `generate_answer(question, mode, hits, status_records, graph_context, warnings)`: sinh câu trả lời từ bằng chứng đã cung cấp.
+
+### `RetrievalHit`
+
+Dataclass chuẩn hóa một kết quả retrieval từ Chroma hoặc Elasticsearch.
+
+Cách implement:
+
+- Giữ thông tin chunk/document/article/clause/status/score/source.
+- `key` ưu tiên `chunk_id`, fallback về tổ hợp document/article/clause/citation.
+- `from_payload(...)` đọc payload index và tạo `citation_label` fallback nếu thiếu.
+- `citation()` trả citation object cho API, gồm document id/title/number, article, clause, validity status, active flag và chunk id.
+
+### `DeepSeekChatClient`
+
+Client LLM dùng OpenAI SDK với `base_url="https://api.deepseek.com/v1"`.
+
+Cách implement:
+
+- `classify()` yêu cầu JSON với `mode`, `normalized_query`, `explicit_expired`; nếu LLM không trả JSON hợp lệ thì fallback sang `classify_question_heuristically()`.
+- `check_evidence()` yêu cầu JSON `relevant`, `confidence_delta`, `warnings`; nếu LLM unavailable thì dùng tín hiệu retrieval/status hiện có.
+- `generate_answer()` gửi citations/status/graph context/warnings và yêu cầu trả lời tiếng Việt chỉ dựa trên bằng chứng đã đưa.
+- `_chat_text()` cần `DEEPSEEK_API_KEY` và package `openai`; thiếu key/package hoặc call lỗi thì trả chuỗi rỗng, không làm crash request.
+
+### `ChromaVectorRetriever`
+
+Retriever dense/vector qua Chroma.
+
+Cách implement:
+
+- Mở `chromadb.PersistentClient(path=config.chroma_path)`.
+- Lấy collection `config.chroma_collection`.
+- Embed query bằng `LocalEmbeddingProvider(config.embedding_model)`.
+- Query records có `is_published = 1`.
+- Convert kết quả thành `RetrievalHit`, lọc theo document number/article number và hiệu lực qua `hit_allowed()`.
+
+### `ElasticsearchBM25Retriever`
+
+Retriever lexical/BM25 qua Elasticsearch.
+
+Cách implement:
+
+- Chỉ chạy khi `config.bm25_provider == "elasticsearch"`.
+- Query multi-match trên `content`, `document_title`, `citation_label`, `document_number`.
+- Luôn filter `is_published=true`; thêm filter `document_number`/`article_number` nếu extract được.
+- Hỗ trợ API key hoặc basic auth từ config.
+- Nếu thiếu config/package/client lỗi thì raise `RetrieverUnavailable` để agent ghi warning thay vì crash.
+
+### `FixedNeo4jContextRetriever`
+
+Retriever bổ sung context graph từ Neo4j.
+
+Cách implement:
+
+- Nếu không có hit hoặc thiếu `neo4j_password`, trả graph context rỗng.
+- Với từng hit, kiểm tra cấu trúc `Document -> Article -> Clause`.
+- Lấy quan hệ `ADMIN_RELATION` đã publish từ document sang target document.
+- Tính `support_score`: cao hơn khi vừa có structure vừa có relation; thấp hơn khi chỉ có hit.
+
+Giới hạn quan trọng: graph context ở đây chỉ phản ánh cấu trúc/chunk đã index và
+quan hệ admin/LLM đã được lưu-publish trong `document_relations`. Nó không tự suy
+diễn quan hệ pháp lý cấp 1/cấp 2 nếu dữ liệu quan hệ không tồn tại.
+
+### `DocumentStatusRepository`
+
+Repository đọc SQLite để trả lời câu hỏi hiệu lực/trạng thái cơ bản.
+
+Cách implement:
+
+- Tìm trong `document_registry` với `is_published = 1`.
+- Match theo `document_number` nếu filter có, hoặc theo query/title.
+- Gắn tối đa 10 relation đã publish từ `document_relations`.
+- Dùng cho mode `status_basic`, kể cả khi chưa có chunk retrieval phù hợp.
+
+### `ChatAgentService.__init__(config, ...)`
+
+Khởi tạo các dependency mặc định:
+
+- `DeepSeekChatClient`
+- `ChromaVectorRetriever`
+- `ElasticsearchBM25Retriever`
+- `FixedNeo4jContextRetriever`
+- `DocumentStatusRepository`
+
+Các dependency đều inject được trong test.
+
+### `ChatAgentService.answer(message, user=None, requested_top_k=None)`
+
+Entry point chính.
+
+Cách implement:
+
+- Tạo `trace_id` UUID.
+- Xác định role: không có user thì là `guest`.
+- Tính `top_k` bằng `resolve_top_k()`: guest tối đa 3, user thường tối đa 12, admin tối đa 20.
+- Chạy graph LangGraph nếu available; nếu không thì `_run_without_langgraph()`.
+- Nếu toàn bộ agent lỗi trước khi tạo evidence, trả `insufficient_evidence_response()` với warning `CHAT_SERVICE_ERROR`.
+- Log `trace_id`, mode, duration, số hit, warning codes và model.
+- Trả payload ổn định cho route chat.
+
+### `_build_graph()` và `_run_without_langgraph()`
+
+`_build_graph()` dựng `StateGraph(ChatAgentState)` với các node tuyến tính:
+
+```text
+route_intent -> resolve_exact_status -> vector_retrieve -> bm25_retrieve
+-> graph_enrich -> fuse_and_rerank -> evidence_check -> generate_output
+```
+
+Nếu không import được `langgraph`, service vẫn chạy cùng chuỗi node bằng
+`_run_without_langgraph()`.
+
+### Node xử lý chính
+
+- `_route_intent()`: dùng LLM hoặc heuristic để chọn `legal_lookup`, `status_basic`, `out_of_scope`; đồng thời extract filter document number/article number.
+- `_resolve_exact_status()`: với `status_basic`, đọc metadata publish từ SQLite.
+- `_vector_retrieve()`: query Chroma, ghi warning `RETRIEVER_UNAVAILABLE` nếu unavailable.
+- `_bm25_retrieve()`: query Elasticsearch, ghi warning nếu unavailable.
+- `_graph_enrich()`: lấy context Neo4j từ hits.
+- `_fuse_and_rerank()`: gộp dense/BM25 bằng Reciprocal Rank Fusion, dedupe citation, thêm warning unknown validity.
+- `_evidence_check()`: nếu không có citation thì chuyển sang `insufficient_evidence`; nếu có citation thì tính confidence và warning chất lượng.
+- `_generate_output()`: trả thông báo out-of-scope/insufficient-evidence hoặc gọi LLM sinh answer; nếu LLM không sinh được thì dùng `build_extractive_answer()`.
+
+### Helper functions
+
+- `resolve_top_k(raw_top_k, user_role)`: giới hạn số kết quả theo role.
+- `classify_question_heuristically(question)`: phân loại cơ bản bằng keyword tiếng Việt không dấu.
+- `extract_filters(query)`: lấy `article_number` và `document_number`.
+- `should_include_expired(state)`: chỉ include văn bản hết hiệu lực khi hỏi status hoặc nói rõ muốn xem expired.
+- `hit_allowed(hit, filters, include_expired)`: lọc theo filter và validity status.
+- `fuse_hits(hit_lists, top_k, rrf_k=60)`: RRF, merge duplicate hit và giữ content dài hơn.
+- `compute_confidence(...)`: kết hợp dense score, BM25 score, graph support, citation quality, validity status và LLM delta.
+- `build_extractive_answer(state)`: fallback answer dựa trên status records hoặc top hits.
+- `insufficient_evidence_response(...)`: response chuẩn khi không đủ căn cứ.
+- `citation_from_status_record(record)`: biến metadata record thành citation.
+- `unique_citations(citations)`: dedupe citation theo chunk/document/article/clause.
+- `compact_status_records(records)`: rút gọn status records trước khi gửi LLM.
+- `append_warning(...)`, `warning(...)`: tạo/dedupe warning.
+- `normalize_validity_status()`, `is_active_status()`, `is_unknown_status()`: chuẩn hóa hiệu lực.
+- `normalize_query_text()`: bỏ dấu tiếng Việt để match keyword/filter.
+- `optional_text()`, `coerce_bool()`, `safe_float()`, `first_list()`, `trim_words()`: helper parse/format an toàn.
+
+## 9. `backend/services/auth_service.py`
 
 ### `AuthError`
 
@@ -631,7 +832,7 @@ Hash token và set `revoked_at` cho session tương ứng.
 - `validate_username(username)`: bắt buộc 3-50 ký tự.
 - `validate_password(password)`: bắt buộc tối thiểu 6 ký tự.
 
-## 9. `backend/services/document_import_service.py`
+## 10. `backend/services/document_import_service.py`
 
 ### `DocumentImportError`
 
@@ -866,7 +1067,7 @@ Bộ helper ghi `pipeline_runs` và `pipeline_events`.
 - `count_chunks(path)`: đếm chunks.
 - `utc_now_iso()`: UTC timestamp.
 
-## 10. `backend/services/indexing_service.py`
+## 11. `backend/services/indexing_service.py`
 
 ### `IndexingError`
 
@@ -1051,7 +1252,7 @@ Cách implement:
 - `elasticsearch_index_mapping()`: mapping/analyzer tiếng Việt cho Elasticsearch index.
 - `utc_now_iso()`: UTC timestamp.
 
-## 11. `backend/models/database.py`
+## 12. `backend/models/database.py`
 
 ### `ClosingConnection`
 
@@ -1110,7 +1311,7 @@ Tạo bảng/index `chat_conversations` và `chat_messages` nếu chưa có.
 
 Đọc `PRAGMA table_info(table_name)` và trả set tên column.
 
-## 12. `backend/models/sqlite_schema.sql`
+## 13. `backend/models/sqlite_schema.sql`
 
 Schema chính gồm:
 
@@ -1123,7 +1324,7 @@ Schema chính gồm:
 - `pipeline_runs`: trạng thái tổng của import/publish/rollback.
 - `pipeline_events`: timeline chi tiết của từng pipeline.
 
-## 13. `backend/services/seed_service.py`
+## 14. `backend/services/seed_service.py`
 
 ### `seed_admin_user(config)`
 
@@ -1135,12 +1336,12 @@ Cách implement:
 - Nếu chưa có, gọi `AuthService.create_user(..., role=admin)`.
 - Nếu env admin không hợp lệ, catch `AuthError` và log lỗi.
 
-## 14. Các module `src` được backend gọi gián tiếp
+## 15. Các module `src` được backend gọi gián tiếp
 
 Các file này không nằm trong `backend/`, nhưng có liên quan:
 
 - `src/ingestion/llm_splitter.py`: được `DocumentImportService._chunk_text()` import khi `LLM_CHUNKING_ENABLED=true`.
-- `src/retrieval/retrieval.py`: hiện chưa được `backend/api/chat_routes.py` gọi, nhưng là module retrieval Neo4j/LLM độc lập cho CLI.
+- `src/retrieval/retrieval.py`: module retrieval Neo4j/LLM độc lập cho CLI legacy; route chat hiện dùng retriever riêng trong `backend/services/chat_agent_service.py`.
 - `src/ingestion/ingest.py` và `src/ingestion/embed.py`: phục vụ CLI legacy trong `main.py`, không phải luồng admin upload chính.
 
 Vì vậy khi đọc backend hiện tại, nên xem admin upload/publish pipeline là luồng chính; các module `src` là hỗ trợ/legacy hoặc optional.

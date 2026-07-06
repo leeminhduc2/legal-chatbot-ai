@@ -94,6 +94,12 @@ export default function ChatPage() {
         content: data.answer || data.response || t('chat.no_response'),
         citations: data.citations || [],
         confidence: data.confidence ?? null,
+        warnings: data.warnings || [],
+        retrieval_mode: data.retrieval_mode || null,
+        trace_id: data.trace_id || null,
+        agent_steps: data.agent_steps || [],
+        tool_trace: data.tool_trace || [],
+        memory_used: data.memory_used || null,
       };
       setMessages((prev) => [...prev, aiMsg]);
       if (data.conversation_id) {

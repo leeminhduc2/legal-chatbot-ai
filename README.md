@@ -3,10 +3,10 @@
 
 ## Quick start
 
-1. (Optional) Create python virtual environment
+1. (Optional) Create Python 3.13 virtual environment
 
 ```bash
-python -m venv .venv
+py -3.13 -m venv .venv
 ```
 
 
@@ -14,7 +14,7 @@ python -m venv .venv
 
 ```bash
 pip install uv ## pip written in rust
-uv pip install chromadb FlagEmbedding elasticsearch python-docx openai neo4j python-dotenv flask werkzeug requests crawl4ai
+uv pip install -r requirements.txt
 ```
 
 3. Start the Flask API

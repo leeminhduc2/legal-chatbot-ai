@@ -10,16 +10,16 @@ Bạn PHẢI trả về KẾT QUẢ DƯỚI DẠNG MẢNG JSON, tuân thủ sche
 ```json
 [
   {
-    "content" : ""
+    "content" : `Nội dung`
     "metadata": {
-      "part": "Phần I ...", 
-      "chapter": "CHƯƠNG I ...", 
-      "section": "Mục 1 ...", 
-      "subsection": null,
-      "article": "Điều 1 ...",
-      "clause": "Khoản 1",
-      "hierarchy_path": "CHƯƠNG I > Điều 1 > Khoản 1",
-      "chunk_level": "clause"
+      "part": `Phần I ...`, 
+      "chapter": `CHƯƠNG I ...`, 
+      "section": `Mục 1 ...`, 
+      "subsection": `Tiểu mục ...`, 
+      "article": `Điều 1 ...`,
+      "clause": `Khoản 1`,
+      "hierarchy_path": `CHƯƠNG I > Điều 1 > Khoản 1`,
+      "chunk_level": `clause`
     }
   }
 ]
@@ -31,6 +31,7 @@ QUY TẮC:
 - `clause` nên được ghi là "Khoản X" nếu nội dung bắt đầu bằng "X. ".
 - KHÔNG tạo nội dung. CHỈ trả về JSON.
 - Đảm bảo JSON hợp lệ.
+- Lưu ý rằng nếu có điều/khoản nào sửa đổi, bổ sung một khoản hay một điều nhất định, thì hãy xem nội dung trong phần ngoặc kép (") là nội dung của điều/khoản đó. 
 
 TEXT CẦN XỬ LÝ:
 {text}

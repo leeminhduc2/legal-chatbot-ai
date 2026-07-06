@@ -10,6 +10,7 @@ from flask import Blueprint, current_app, g, jsonify, request
 from backend.api.decorators import error_response, extract_bearer_token, require_auth
 from backend.models.database import get_connection, row_to_dict
 from backend.services.auth_service import AuthService
+from backend.services.chat_agent_service import ChatAgentService
 
 
 chat_bp = Blueprint("chat", __name__, url_prefix="/api/v1/chat")
@@ -24,31 +25,62 @@ def chat():
 
     user = _get_optional_user()
     conversation_id = payload.get("conversation_id")
-    answer_payload = _build_fallback_answer(message)
+    app_config = current_app.config["APP_CONFIG"]
+    history_service = _get_chat_history_service()
+    conversation: dict[str, Any] | None = None
+    conversation_context: dict[str, Any] = {}
+
+    if user is not None:
+        try:
+            conversation = history_service.ensure_conversation(
+                user_id=user["id"],
+                conversation_id=str(conversation_id).strip() if conversation_id else "",
+                first_message=message,
+            )
+        except ValueError:
+            return error_response("CONVERSATION_NOT_FOUND", "Conversation not found.", 404)
+        conversation_context = history_service.get_conversation_context(
+            user_id=user["id"],
+            conversation_id=conversation["id"],
+            recent_limit=app_config.chat_memory_recent_messages,
+            summary_enabled=app_config.chat_memory_summary_enabled,
+        )
+
+    answer_payload = _get_chat_agent_service().answer(
+        message,
+        user=user,
+        requested_top_k=payload.get("top_k"),
+        conversation_context=conversation_context,
+    )
 
     if user is None:
         return jsonify(answer_payload)
 
-    service = _get_chat_history_service()
-    try:
-        conversation = service.ensure_conversation(
-            user_id=user["id"],
-            conversation_id=str(conversation_id).strip() if conversation_id else "",
-            first_message=message,
-        )
-    except ValueError:
-        return error_response("CONVERSATION_NOT_FOUND", "Conversation not found.", 404)
-    service.add_message(
+    assert conversation is not None
+    history_service.add_message(
         conversation_id=conversation["id"],
         role="user",
         content=message,
     )
-    service.add_message(
+    history_service.add_message(
         conversation_id=conversation["id"],
         role="assistant",
         content=answer_payload["answer"],
         citations=answer_payload["citations"],
         confidence=answer_payload["confidence"],
+        metadata={
+            "warnings": answer_payload.get("warnings", []),
+            "retrieval_mode": answer_payload.get("retrieval_mode"),
+            "trace_id": answer_payload.get("trace_id"),
+            "agent_steps": answer_payload.get("agent_steps", []),
+            "tool_trace": answer_payload.get("tool_trace", []),
+            "memory_used": answer_payload.get("memory_used", {}),
+        },
+    )
+    history_service.refresh_summary(
+        conversation_id=conversation["id"],
+        recent_limit=app_config.chat_memory_recent_messages,
+        summary_enabled=app_config.chat_memory_summary_enabled,
     )
 
     return jsonify(
@@ -105,6 +137,8 @@ class ChatHistoryService:
             "id": str(uuid.uuid4()),
             "user_id": user_id,
             "title": make_title(first_message),
+            "summary": "",
+            "summary_updated_at": None,
             "created_at": now,
             "updated_at": now,
         }
@@ -132,6 +166,7 @@ class ChatHistoryService:
         content: str,
         citations: list[dict[str, Any]] | None = None,
         confidence: float | None = None,
+        metadata: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         now = utc_now_iso()
         message = {
@@ -141,15 +176,17 @@ class ChatHistoryService:
             "content": content,
             "citations": citations or [],
             "confidence": confidence,
+            "metadata": metadata or {},
             "created_at": now,
         }
         with get_connection(self.db_path) as connection:
             connection.execute(
                 """
                 INSERT INTO chat_messages (
-                    id, conversation_id, role, content, citations_json, confidence, created_at
+                    id, conversation_id, role, content, citations_json, confidence,
+                    metadata_json, created_at
                 )
-                VALUES (?, ?, ?, ?, ?, ?, ?)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     message["id"],
@@ -158,6 +195,7 @@ class ChatHistoryService:
                     content,
                     json.dumps(message["citations"], ensure_ascii=False),
                     confidence,
+                    json.dumps(message["metadata"], ensure_ascii=False),
                     now,
                 ),
             )
@@ -176,7 +214,8 @@ class ChatHistoryService:
         with get_connection(self.db_path) as connection:
             rows = connection.execute(
                 """
-                SELECT id, user_id, title, created_at, updated_at
+                SELECT id, user_id, title, summary, summary_updated_at,
+                       created_at, updated_at
                 FROM chat_conversations
                 WHERE user_id = ?
                 ORDER BY updated_at DESC
@@ -193,7 +232,8 @@ class ChatHistoryService:
         with get_connection(self.db_path) as connection:
             conversation_row = connection.execute(
                 """
-                SELECT id, user_id, title, created_at, updated_at
+                SELECT id, user_id, title, summary, summary_updated_at,
+                       created_at, updated_at
                 FROM chat_conversations
                 WHERE id = ? AND user_id = ?
                 """,
@@ -204,7 +244,8 @@ class ChatHistoryService:
 
             message_rows = connection.execute(
                 """
-                SELECT id, conversation_id, role, content, citations_json, confidence, created_at
+                SELECT id, conversation_id, role, content, citations_json, confidence,
+                       metadata_json, created_at
                 FROM chat_messages
                 WHERE conversation_id = ?
                 ORDER BY created_at ASC
@@ -217,23 +258,63 @@ class ChatHistoryService:
             "messages": [format_message(row_to_dict(row)) for row in message_rows],
         }
 
+    def get_conversation_context(
+        self,
+        user_id: str,
+        conversation_id: str,
+        recent_limit: int,
+        summary_enabled: bool,
+    ) -> dict[str, Any]:
+        conversation = self.get_conversation(user_id, conversation_id)
+        if conversation is None:
+            return {"summary": "", "recent_messages": [], "older_message_count": 0}
+        messages = conversation.get("messages", [])
+        limit = max(1, int(recent_limit or 5))
+        recent_messages = messages[-limit:]
+        older_messages = messages[:-limit]
+        summary = ""
+        if summary_enabled:
+            summary = conversation["conversation"].get("summary") or ""
+            if older_messages and not summary:
+                summary = build_conversation_summary(older_messages)
+        return {
+            "summary": summary,
+            "recent_messages": [compact_history_message(item) for item in recent_messages],
+            "older_message_count": len(older_messages),
+        }
 
-def _build_fallback_answer(message: str) -> dict[str, Any]:
-    return {
-        "answer": (
-            "Tôi đã ghi nhận câu hỏi của bạn. Chức năng truy xuất pháp lý đang "
-            "được kết nối với kho dữ liệu đã xuất bản; vui lòng kiểm tra trích dẫn "
-            "trước khi sử dụng nội dung này cho quyết định pháp lý."
-        ),
-        "response": (
-            "Tôi đã ghi nhận câu hỏi của bạn. Chức năng truy xuất pháp lý đang "
-            "được kết nối với kho dữ liệu đã xuất bản; vui lòng kiểm tra trích dẫn "
-            "trước khi sử dụng nội dung này cho quyết định pháp lý."
-        ),
-        "citations": [],
-        "confidence": None,
-        "query": message,
-    }
+    def refresh_summary(
+        self,
+        conversation_id: str,
+        recent_limit: int,
+        summary_enabled: bool,
+    ) -> None:
+        if not summary_enabled:
+            return
+        limit = max(1, int(recent_limit or 5))
+        with get_connection(self.db_path) as connection:
+            rows = connection.execute(
+                """
+                SELECT id, conversation_id, role, content, citations_json, confidence,
+                       metadata_json, created_at
+                FROM chat_messages
+                WHERE conversation_id = ?
+                ORDER BY created_at ASC
+                """,
+                (conversation_id,),
+            ).fetchall()
+            messages = [format_message(row_to_dict(row)) for row in rows]
+            summary = build_conversation_summary(messages[:-limit])
+            now = utc_now_iso()
+            connection.execute(
+                """
+                UPDATE chat_conversations
+                SET summary = ?, summary_updated_at = ?, updated_at = ?
+                WHERE id = ?
+                """,
+                (summary, now if summary else None, now, conversation_id),
+            )
+            connection.commit()
 
 
 def _get_optional_user() -> dict[str, Any] | None:
@@ -255,6 +336,14 @@ def _get_chat_history_service() -> ChatHistoryService:
     return ChatHistoryService(current_app.config["APP_CONFIG"].sqlite_db_path)
 
 
+def _get_chat_agent_service() -> ChatAgentService:
+    service = current_app.extensions.get("chat_agent_service")
+    if service is None:
+        service = ChatAgentService(current_app.config["APP_CONFIG"])
+        current_app.extensions["chat_agent_service"] = service
+    return service
+
+
 def format_message(message: dict[str, Any] | None) -> dict[str, Any]:
     if message is None:
         return {}
@@ -262,6 +351,10 @@ def format_message(message: dict[str, Any] | None) -> dict[str, Any]:
         citations = json.loads(message.get("citations_json") or "[]")
     except json.JSONDecodeError:
         citations = []
+    try:
+        metadata = json.loads(message.get("metadata_json") or "{}")
+    except json.JSONDecodeError:
+        metadata = {}
     return {
         "id": message["id"],
         "conversation_id": message["conversation_id"],
@@ -269,6 +362,13 @@ def format_message(message: dict[str, Any] | None) -> dict[str, Any]:
         "content": message["content"],
         "citations": citations,
         "confidence": message["confidence"],
+        "warnings": metadata.get("warnings", []),
+        "retrieval_mode": metadata.get("retrieval_mode"),
+        "trace_id": metadata.get("trace_id"),
+        "agent_steps": metadata.get("agent_steps", []),
+        "tool_trace": metadata.get("tool_trace", []),
+        "memory_used": metadata.get("memory_used", {}),
+        "metadata": metadata,
         "created_at": message["created_at"],
     }
 
@@ -278,6 +378,32 @@ def make_title(message: str) -> str:
     if len(title) > 60:
         return f"{title[:57]}..."
     return title or "Conversation"
+
+
+def compact_history_message(message: dict[str, Any]) -> dict[str, str]:
+    return {
+        "role": str(message.get("role") or ""),
+        "content": trim_words(str(message.get("content") or ""), 120),
+    }
+
+
+def build_conversation_summary(messages: list[dict[str, Any]]) -> str:
+    if not messages:
+        return ""
+    lines = []
+    for item in messages[-12:]:
+        role = str(item.get("role") or "message")
+        content = trim_words(str(item.get("content") or ""), 60)
+        if content:
+            lines.append(f"{role}: {content}")
+    return trim_words(" | ".join(lines), 240)
+
+
+def trim_words(text: str, max_words: int) -> str:
+    words = text.split()
+    if len(words) <= max_words:
+        return text
+    return " ".join(words[:max_words]) + "..."
 
 
 def utc_now_iso() -> str:

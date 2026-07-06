@@ -33,11 +33,16 @@ class Config:
     elasticsearch_password: str = ""
     elasticsearch_verify_certs: bool = True
     llm_provider: str = "deepseek"
-    llm_model_chat: str = ""
-    llm_model_chunking: str = ""
+    llm_model_chat: str = "deepseek-chat"
+    llm_model_chunking: str = "deepseek-v4-flash"
     llm_model_metadata: str = "deepseek-v4-flash"
     llm_chunking_enabled: bool = False
     embedding_model: str = "BAAI/bge-m3"
+    chat_agent_mode: str = "react"
+    chat_agent_timeout_seconds: int = 90
+    chat_agent_max_iterations: int = 8
+    chat_memory_recent_messages: int = 5
+    chat_memory_summary_enabled: bool = True
 
     @classmethod
     def from_env(cls) -> "Config":
@@ -91,6 +96,23 @@ class Config:
                 cls.llm_chunking_enabled,
             ),
             embedding_model=os.getenv("EMBEDDING_MODEL", cls.embedding_model),
+            chat_agent_mode=os.getenv("CHAT_AGENT_MODE", cls.chat_agent_mode),
+            chat_agent_timeout_seconds=_int_from_env(
+                "CHAT_AGENT_TIMEOUT_SECONDS",
+                cls.chat_agent_timeout_seconds,
+            ),
+            chat_agent_max_iterations=_int_from_env(
+                "CHAT_AGENT_MAX_ITERATIONS",
+                cls.chat_agent_max_iterations,
+            ),
+            chat_memory_recent_messages=_int_from_env(
+                "CHAT_MEMORY_RECENT_MESSAGES",
+                cls.chat_memory_recent_messages,
+            ),
+            chat_memory_summary_enabled=_bool_from_env(
+                "CHAT_MEMORY_SUMMARY_ENABLED",
+                cls.chat_memory_summary_enabled,
+            ),
         )
 
 

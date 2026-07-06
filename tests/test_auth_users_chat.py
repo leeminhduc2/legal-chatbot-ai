@@ -4,6 +4,7 @@ import os
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 from backend.config import Config
 from backend.services.auth_service import ROLE_BUSINESS_USER, ROLE_FREE_USER
@@ -75,11 +76,13 @@ class AuthUsersChatTest(unittest.TestCase):
     def test_free_user_chat_persists_conversation_history(self) -> None:
         token = self._register("free-user", "secret1")
 
-        chat = self.client.post(
-            "/api/v1/chat",
-            headers=self._auth_headers(token),
-            json={"message": "Dieu kien kinh doanh bao hiem la gi?"},
-        )
+        with patch("backend.api.chat_routes._get_chat_agent_service") as agent:
+            agent.return_value = FakeChatAgentService()
+            chat = self.client.post(
+                "/api/v1/chat",
+                headers=self._auth_headers(token),
+                json={"message": "Dieu kien kinh doanh bao hiem la gi?"},
+            )
         self.assertEqual(chat.status_code, 200, chat.get_data(as_text=True))
         chat_payload = chat.get_json()
         self.assertIn("conversation_id", chat_payload)
@@ -98,14 +101,49 @@ class AuthUsersChatTest(unittest.TestCase):
         self.assertEqual(detail.status_code, 200, detail.get_data(as_text=True))
         messages = detail.get_json()["messages"]
         self.assertEqual([message["role"] for message in messages], ["user", "assistant"])
+        self.assertEqual(messages[1]["retrieval_mode"], "legal_lookup")
+        self.assertEqual(messages[1]["warnings"][0]["code"], "LOW_RELEVANCE")
+        self.assertEqual(messages[1]["agent_steps"][0]["phase"], "retrieval")
+        self.assertEqual(messages[1]["tool_trace"][0]["tool"], "vector_search")
 
     def test_guest_chat_does_not_persist_history(self) -> None:
-        chat = self.client.post("/api/v1/chat", json={"message": "Xin chao"})
+        with patch("backend.api.chat_routes._get_chat_agent_service") as agent:
+            agent.return_value = FakeChatAgentService()
+            chat = self.client.post("/api/v1/chat", json={"message": "Xin chao"})
         self.assertEqual(chat.status_code, 200, chat.get_data(as_text=True))
         self.assertNotIn("conversation_id", chat.get_json())
+        self.assertEqual(chat.get_json()["retrieval_mode"], "legal_lookup")
 
         conversations = self.client.get("/api/v1/chat/conversations")
         self.assertEqual(conversations.status_code, 401)
+
+    def test_authenticated_chat_passes_recent_memory_and_summary(self) -> None:
+        token = self._register("free-user", "secret1")
+        fake_agent = FakeChatAgentService()
+
+        with patch("backend.api.chat_routes._get_chat_agent_service") as agent:
+            agent.return_value = fake_agent
+            first = self.client.post(
+                "/api/v1/chat",
+                headers=self._auth_headers(token),
+                json={"message": "Cau hoi 1"},
+            )
+            conversation_id = first.get_json()["conversation_id"]
+            for index in range(2, 6):
+                response = self.client.post(
+                    "/api/v1/chat",
+                    headers=self._auth_headers(token),
+                    json={
+                        "message": f"Cau hoi {index}",
+                        "conversation_id": conversation_id,
+                    },
+                )
+                self.assertEqual(response.status_code, 200, response.get_data(as_text=True))
+
+        last_context = fake_agent.contexts[-1]
+        self.assertEqual(len(last_context["recent_messages"]), 5)
+        self.assertTrue(last_context["summary"])
+        self.assertGreater(last_context["older_message_count"], 0)
 
     def test_admin_can_manage_users_and_locked_user_cannot_login(self) -> None:
         admin_token = self._login("admin", "password")
@@ -177,6 +215,67 @@ class AuthUsersChatTest(unittest.TestCase):
     @staticmethod
     def _auth_headers(token: str) -> dict[str, str]:
         return {"Authorization": f"Bearer {token}"}
+
+
+class FakeChatAgentService:
+    def __init__(self):
+        self.contexts = []
+
+    def answer(
+        self,
+        message: str,
+        *,
+        user=None,
+        requested_top_k=None,
+        conversation_context=None,
+    ) -> dict:
+        self.contexts.append(conversation_context or {})
+        return {
+            "answer": "Mocked legal answer.",
+            "response": "Mocked legal answer.",
+            "query": message,
+            "retrieval_mode": "legal_lookup",
+            "confidence": 0.78,
+            "warnings": [
+                {"code": "LOW_RELEVANCE", "message": "Mocked warning."},
+            ],
+            "citations": [
+                {
+                    "citation_label": "01/2026/QH, Dieu 1",
+                    "document_id": "doc-1",
+                    "document_title": "Luat test",
+                    "document_name": "Luat test",
+                    "document_number": "01/2026/QH",
+                    "article_number": "1",
+                    "clause_number": None,
+                    "article": "Dieu 1",
+                    "validity_status": "active",
+                    "is_active": True,
+                    "chunk_id": "chunk-1",
+                }
+            ],
+            "trace_id": "trace-test",
+            "agent_steps": [
+                {"phase": "retrieval", "message": "Mocked retrieval.", "status": "ok"}
+            ],
+            "tool_trace": [
+                {
+                    "tool": "vector_search",
+                    "phase": "retrieval",
+                    "input_summary": "mock query",
+                    "result_count": 1,
+                    "duration_ms": 3,
+                    "status": "ok",
+                    "warnings": [],
+                }
+            ],
+            "memory_used": {
+                "recent_message_count": len(
+                    (conversation_context or {}).get("recent_messages", [])
+                ),
+                "summary_used": bool((conversation_context or {}).get("summary")),
+            },
+        }
 
 
 if __name__ == "__main__":
