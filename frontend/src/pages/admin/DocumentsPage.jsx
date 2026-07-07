@@ -31,6 +31,18 @@ const PUBLISH_RELOAD_DELAY_MS = 800;
 const PUBLISH_POLL_INTERVAL_MS = 2000;
 const PUBLISH_TERMINAL_STATUSES = new Set(['published', 'failed']);
 
+function formatRelationTypeLabel(relationType, t) {
+  if (!relationType) return t('admin.documents.other_relationships');
+  if (RELATION_TYPE_SET.has(relationType)) {
+    return t(`admin.documents.relation_labels.${relationType}`);
+  }
+  return relationType
+    .split('_')
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(' ');
+}
+
 export default function DocumentsPage({ mode = 'published' }) {
   const { t } = useTranslation();
   const isPublishedPage = mode === 'published';
@@ -639,6 +651,9 @@ export default function DocumentsPage({ mode = 'published' }) {
                 const relations = groupedRelations[relationType] || [];
                 if (relationType === 'other' && relations.length === 0) return null;
                 const expanded = Boolean(expandedRelations[relationType]);
+                const relationTypeLabel = relationType === 'other'
+                  ? t('admin.documents.other_relationships')
+                  : formatRelationTypeLabel(relationType, t);
                 return (
                   <div className="relationship-group" key={relationType}>
                     <button
@@ -646,7 +661,7 @@ export default function DocumentsPage({ mode = 'published' }) {
                       className="relationship-toggle"
                       onClick={() => setExpandedRelations((items) => ({ ...items, [relationType]: !expanded }))}
                     >
-                      <span>{relationType === 'other' ? t('admin.documents.other_relationships') : relationType}</span>
+                      <span>{relationTypeLabel}</span>
                       <span className="badge badge-muted">{relations.length}</span>
                     </button>
                     {expanded && (
@@ -667,6 +682,11 @@ export default function DocumentsPage({ mode = 'published' }) {
                           {relations.map(({ relation, index }) => (
                             <div className="relationship-item" key={relation.id || `${relation.relation_type}-${relation.target_document_number}-${index}`}>
                               <div className="relationship-target">
+                                {relationType === 'other' && relation?.relation_type && (
+                                  <span className="relationship-type-note">
+                                    {formatRelationTypeLabel(relation.relation_type, t)}
+                                  </span>
+                                )}
                                 <strong>{relation.target_document_number || relation.target_document_id || '-'}</strong>
                                 {relation.source_text && <span>{relation.source_text}</span>}
                               </div>

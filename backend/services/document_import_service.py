@@ -2222,7 +2222,7 @@ _ARTICLE_HEADING_RE = re.compile(
 )
 _CLAUSE_HEADING_RE = re.compile(r"^\s*(\d+)\.\s+")
 _AMENDMENT_QUOTE_INTRO_RE = re.compile(
-    r"(?:nh\u01b0|nhu)\s+sau\s*:\s*[\u201c\"]?\s*$",
+    r"(?:nh\u01b0|nhu)\s+sau\s*:\s*[\u201c\"]\s*$",
     re.IGNORECASE,
 )
 _QUOTE_OPEN_CHARS = {"\u201c", "\u2018", "\u00ab"}
@@ -2259,7 +2259,7 @@ def regex_chunk_text(
 ) -> list[dict[str, Any]]:
     article_segments = (
         _find_article_segments_with_segment_pattern(text)
-        if False  # Toggle to False to compare with the legacy boundary splitter.
+        if True  # Toggle to False to compare with the legacy boundary splitter.
         else _find_article_segments_with_legacy_boundaries(text)
     )
     if not article_segments:
@@ -2339,6 +2339,7 @@ def _find_article_segments_with_segment_pattern(text: str) -> list[tuple[str, st
 
 def _find_article_segments_with_legacy_boundaries(text: str) -> list[tuple[str, str]]:
     article_matches = _find_article_boundaries(text)
+    print(f"Number of article matches: {len(article_matches)}")
     segments = []
     for article_index, (start, article_number) in enumerate(article_matches):
         end = (
