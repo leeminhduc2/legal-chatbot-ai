@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import json
 import sqlite3
 import tempfile
 import unittest
@@ -116,6 +117,61 @@ class AuthUsersChatTest(unittest.TestCase):
         self.assertTrue(last_context["summary"])
         self.assertGreater(last_context["older_message_count"], 0)
 
+    def test_chat_history_redacts_assistant_citations_outside_field_scope(self) -> None:
+        admin_token = self._login("admin", "password")
+        create = self.client.post(
+            "/api/v1/admin/users",
+            headers=self._auth_headers(admin_token),
+            json={
+                "username": "business-user",
+                "password": "secret1",
+                "role": ROLE_BUSINESS_USER,
+                "allowed_field_ids": [1],
+            },
+        )
+        self.assertEqual(create.status_code, 201, create.get_data(as_text=True))
+        token = self._login("business-user", "secret1")
+        user_id = create.get_json()["user"]["id"]
+        with get_connection(self.db_path) as connection:
+            connection.execute(
+                """
+                INSERT INTO chat_conversations (id, user_id, title, summary, summary_updated_at, created_at, updated_at)
+                VALUES ('conv-1', ?, 'Restricted', '', NULL, '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z')
+                """,
+                (user_id,),
+            )
+            connection.execute(
+                """
+                INSERT INTO chat_messages (
+                    id, conversation_id, role, content, citations_json, confidence, metadata_json, created_at
+                )
+                VALUES ('msg-1', 'conv-1', 'assistant', 'Restricted answer', ?, 0.9, '{}', '2026-01-01T00:00:01Z')
+                """,
+                (
+                    json.dumps(
+                        [
+                            {
+                                "document_id": "doc-restricted",
+                                "document_number": "99/2026/QD-TEST",
+                                "field_id": 2,
+                            }
+                        ]
+                    ),
+                ),
+            )
+            connection.commit()
+
+        detail = self.client.get(
+            "/api/v1/chat/conversations/conv-1",
+            headers=self._auth_headers(token),
+        )
+
+        self.assertEqual(detail.status_code, 200, detail.get_data(as_text=True))
+        message = detail.get_json()["messages"][0]
+        self.assertEqual(message["citations"], [])
+        self.assertNotEqual(message["content"], "Restricted answer")
+        self.assertEqual(message["warnings"][0]["code"], "ACCESS_REDACTED")
+
     def test_admin_can_manage_users_and_locked_user_cannot_login(self) -> None:
         admin_token = self._login("admin", "password")
 
@@ -126,11 +182,43 @@ class AuthUsersChatTest(unittest.TestCase):
                 "username": "business-user",
                 "password": "secret1",
                 "role": ROLE_BUSINESS_USER,
+                "allowed_field_ids": [2, 1, 2],
             },
         )
         self.assertEqual(create.status_code, 201, create.get_data(as_text=True))
         user = create.get_json()["user"]
         self.assertEqual(user["role"], ROLE_BUSINESS_USER)
+        self.assertEqual(user["allowed_field_ids"], [1, 2])
+
+        login = self.client.post(
+            "/api/v1/auth/login",
+            json={"username": "business-user", "password": "secret1"},
+        )
+        self.assertEqual(login.status_code, 200, login.get_data(as_text=True))
+        self.assertEqual(login.get_json()["user"]["allowed_field_ids"], [1, 2])
+
+        me = self.client.get(
+            "/api/v1/auth/me",
+            headers=self._auth_headers(login.get_json()["access_token"]),
+        )
+        self.assertEqual(me.status_code, 200, me.get_data(as_text=True))
+        self.assertEqual(me.get_json()["user"]["allowed_field_ids"], [1, 2])
+
+        invalid_field_ids = self.client.patch(
+            f"/api/v1/admin/users/{user['id']}",
+            headers=self._auth_headers(admin_token),
+            json={"allowed_field_ids": [1, -2]},
+        )
+        self.assertEqual(invalid_field_ids.status_code, 400)
+        self.assertEqual(invalid_field_ids.get_json()["error"]["code"], "INVALID_FIELD_IDS")
+
+        update_fields = self.client.patch(
+            f"/api/v1/admin/users/{user['id']}",
+            headers=self._auth_headers(admin_token),
+            json={"allowed_field_ids": [3]},
+        )
+        self.assertEqual(update_fields.status_code, 200, update_fields.get_data(as_text=True))
+        self.assertEqual(update_fields.get_json()["user"]["allowed_field_ids"], [3])
 
         invalid_role = self.client.patch(
             f"/api/v1/admin/users/{user['id']}",
@@ -326,6 +414,7 @@ class FakeChatAgentService:
                     "clause_number": None,
                     "article": "Dieu 1",
                     "validity_status": "active",
+                    "field_id": 0,
                     "is_active": True,
                     "chunk_id": "chunk-1",
                 }

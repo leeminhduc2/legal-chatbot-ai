@@ -17,17 +17,21 @@ from werkzeug.utils import secure_filename
 
 from backend.config import Config
 from backend.models.database import get_connection
-from backend.services.auth_service import ROLE_ADMIN
+from backend.services.auth_service import AuthService, ROLE_ADMIN
 from backend.services.chat_agent_service import (
+    AccessScope,
     ChromaVectorRetriever,
     DocumentStatusRepository,
     ElasticsearchBM25Retriever,
     FixedNeo4jContextRetriever,
     INACTIVE_STATUSES,
     RetrieverUnavailable,
+    access_scope_for_user,
     append_warning,
     citation_from_status_record,
+    filter_hits_for_access,
     fuse_hits,
+    graph_enrich_with_scope,
     is_active_status,
     is_unknown_status,
     normalize_validity_status,
@@ -191,6 +195,7 @@ class ContractReviewAgentService:
     def _build_report(self, job: dict[str, Any]) -> dict[str, Any]:
         state: dict[str, Any] = {
             "job": job,
+            "access_scope": self._access_scope_for_job(job),
             "tool_trace": [],
             "warnings": [],
             "citations": [],
@@ -541,7 +546,7 @@ class ContractReviewAgentService:
                             reference["section_id"],
                             RESULT_INSUFFICIENT,
                             SEVERITY_MEDIUM,
-                            f"{doc_number} was cited but not found in the published metadata.",
+                            f"{doc_number} was cited but not found in accessible published metadata.",
                             "Publish or correct the referenced legal document metadata.",
                             evidence=[reference["text"]],
                         )
@@ -616,12 +621,16 @@ class ContractReviewAgentService:
         citations: list[dict[str, Any]] = []
         warnings: list[dict[str, str]] = []
         query = " ".join(item["document_number"] for item in references[:8])
+        access_scope = state.get("access_scope")
+        if not isinstance(access_scope, AccessScope):
+            access_scope = AccessScope()
+        access_filter = {"_access_scope": access_scope}
 
         started = time.perf_counter()
         for reference in references[:12]:
             records = self.status_repository.find_status_records(
                 reference["document_number"],
-                {"document_number": reference["document_number"]},
+                {"document_number": reference["document_number"], **access_filter},
                 5,
             )
             status_records.extend(records)
@@ -644,7 +653,8 @@ class ContractReviewAgentService:
         ):
             started = time.perf_counter()
             try:
-                tool_hits = retriever.search(query, 8, {}, True)
+                tool_hits = retriever.search(query, 8, access_filter, True)
+                tool_hits = filter_hits_for_access(tool_hits, access_scope)
                 hits.extend(tool_hits)
                 record_tool_trace(
                     state,
@@ -680,7 +690,12 @@ class ContractReviewAgentService:
 
         started = time.perf_counter()
         try:
-            graph_context = self.graph_retriever.enrich(fused, 8)
+            graph_context = graph_enrich_with_scope(
+                self.graph_retriever,
+                fused,
+                8,
+                access_scope,
+            )
             record_tool_trace(
                 state,
                 "graph_context",
@@ -714,6 +729,13 @@ class ContractReviewAgentService:
             "citations": unique_citations(citations),
             "warnings": dedupe_warnings(warnings),
         }
+
+    def _access_scope_for_job(self, job: dict[str, Any]) -> AccessScope:
+        user_id = str(job.get("user_id") or "").strip()
+        if not user_id:
+            return AccessScope()
+        user = AuthService(self.config.sqlite_db_path).get_user_by_id(user_id)
+        return access_scope_for_user(user)
 
     def _synthesize_report(self, state: dict[str, Any]) -> dict[str, Any]:
         started = time.perf_counter()

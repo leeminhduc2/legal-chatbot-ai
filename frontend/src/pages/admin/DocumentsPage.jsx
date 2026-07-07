@@ -7,7 +7,7 @@ import './AdminPage.css';
 
 const METADATA_FIELDS = [
   'title', 'document_number', 'document_type', 'issued_date',
-  'effective_date', 'expiry_date', 'validity_status', 'issuing_body',
+  'effective_date', 'expiry_date', 'validity_status', 'field_id', 'issuing_body',
   'signer_title', 'signer_name',
 ];
 
@@ -252,7 +252,15 @@ export default function DocumentsPage({ mode = 'published' }) {
     setSaving(true);
     try {
       const body = {};
-      METADATA_FIELDS.forEach((key) => { body[key] = metadataDraft[key] || ''; });
+      METADATA_FIELDS.forEach((key) => {
+        if (key === 'field_id') {
+          body[key] = metadataDraft[key] === 0 || metadataDraft[key]
+            ? String(metadataDraft[key])
+            : '';
+          return;
+        }
+        body[key] = metadataDraft[key] || '';
+      });
       const suffix = isPublishedPage ? '?auto_publish=1' : '';
       const res = await api(`/admin/documents/${selected.document.document_id}/metadata${suffix}`, {
         method: 'PATCH',
@@ -452,6 +460,7 @@ export default function DocumentsPage({ mode = 'published' }) {
               <th>#</th>
               <th>{t('admin.documents.doc_name')}</th>
               <th>{t('admin.documents.doc_number')}</th>
+              <th>{t('admin.import.fields.field_id')}</th>
               <th>{t('admin.documents.chunks')}</th>
               <th>{t(isPublishedPage ? 'admin.documents.doc_status' : 'admin.documents.review')}</th>
               <th>{t('admin.documents.actions')}</th>
@@ -463,6 +472,7 @@ export default function DocumentsPage({ mode = 'published' }) {
                 <td>{index + 1}</td>
                 <td className="truncate" style={{ maxWidth: 350 }}>{doc.title || 'Untitled'}</td>
                 <td>{doc.document_number || '-'}</td>
+                <td>{doc.field_id ?? '-'}</td>
                 <td>{doc.chunk_count ?? 0}</td>
                 <td>
                   <span className={`badge ${doc.needs_republish || doc.needs_review ? 'badge-warning' : 'badge-success'}`}>
@@ -494,7 +504,7 @@ export default function DocumentsPage({ mode = 'published' }) {
               </tr>
             ))}
             {filtered.length === 0 && (
-              <tr><td colSpan="6" className="text-center text-muted" style={{ padding: 32 }}>{t('admin.documents.no_docs')}</td></tr>
+              <tr><td colSpan="7" className="text-center text-muted" style={{ padding: 32 }}>{t('admin.documents.no_docs')}</td></tr>
             )}
           </tbody>
         </table>
@@ -562,6 +572,14 @@ export default function DocumentsPage({ mode = 'published' }) {
                         <option key={value} value={value}>{t(`validity.${value}`)}</option>
                       ))}
                     </select>
+                  ) : key === 'field_id' ? (
+                    <input
+                      type="number"
+                      min="0"
+                      step="1"
+                      value={metadataDraft[key] ?? ''}
+                      onChange={(event) => setMetadataDraft({ ...metadataDraft, [key]: event.target.value })}
+                    />
                   ) : (
                     <input
                       value={metadataDraft[key] || ''}

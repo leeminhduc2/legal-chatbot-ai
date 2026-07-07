@@ -31,13 +31,20 @@ class AuthService:
         self.db_path = db_path
         self.token_ttl = timedelta(hours=token_ttl_hours)
 
-    def create_user(self, username: str, password: str, role: str) -> dict[str, Any]:
+    def create_user(
+        self,
+        username: str,
+        password: str,
+        role: str,
+        allowed_field_ids: Any | None = None,
+    ) -> dict[str, Any]:
         username = normalize_username(username)
         validate_username(username)
         validate_password(password)
 
         if role not in VALID_ROLES:
             raise AuthError("INVALID_ROLE", f"Unsupported role: {role}", 400)
+        field_ids = [] if role == ROLE_ADMIN else validate_allowed_field_ids(allowed_field_ids)
 
         now = utc_now_iso()
         user_id = str(uuid.uuid4())
@@ -52,6 +59,7 @@ class AuthService:
                     """,
                     (user_id, username, password_hash, role, now, now),
                 )
+                self._replace_allowed_field_ids(connection, user_id, field_ids, now)
                 connection.commit()
             except sqlite3.IntegrityError as exc:
                 if "UNIQUE" in str(exc).upper():
@@ -76,11 +84,11 @@ class AuthService:
                 ORDER BY created_at DESC, username ASC
                 """
             ).fetchall()
-        users = []
-        for row in rows:
-            user = row_to_dict(row)
-            if user is not None:
-                users.append(sanitize_user(user))
+            users = []
+            for row in rows:
+                user = row_to_dict(row)
+                if user is not None:
+                    users.append(sanitize_user(self._attach_allowed_field_ids(connection, user)))
         return users
 
     def get_user_by_username(self, username: str) -> dict[str, Any] | None:
@@ -90,7 +98,8 @@ class AuthService:
                 "SELECT * FROM users WHERE username = ?",
                 (username,),
             ).fetchone()
-        return row_to_dict(row)
+            user = row_to_dict(row)
+            return self._attach_allowed_field_ids(connection, user) if user else None
 
     def update_user(
         self,
@@ -105,6 +114,16 @@ class AuthService:
         next_role = updates.get("role", user["role"])
         if next_role not in VALID_ROLES:
             raise AuthError("INVALID_ROLE", f"Unsupported role: {next_role}", 400)
+        field_ids_provided = "allowed_field_ids" in updates
+        next_field_ids = (
+            []
+            if next_role == ROLE_ADMIN
+            else validate_allowed_field_ids(
+                updates.get("allowed_field_ids")
+                if field_ids_provided
+                else user.get("allowed_field_ids", [])
+            )
+        )
 
         if "is_active" in updates:
             next_is_active = bool(updates["is_active"])
@@ -165,6 +184,13 @@ class AuthService:
                     """,
                     (utc_now_iso(), user_id),
                 )
+            if field_ids_provided or next_role == ROLE_ADMIN:
+                self._replace_allowed_field_ids(
+                    connection,
+                    user_id,
+                    next_field_ids,
+                    utc_now_iso(),
+                )
             connection.commit()
 
         updated_user = self.get_user_by_id(user_id)
@@ -178,7 +204,8 @@ class AuthService:
                 "SELECT * FROM users WHERE id = ?",
                 (user_id,),
             ).fetchone()
-        return row_to_dict(row)
+            user = row_to_dict(row)
+            return self._attach_allowed_field_ids(connection, user) if user else None
 
     def login(self, username: str, password: str) -> dict[str, Any]:
         user = self.get_user_by_username(username)
@@ -235,10 +262,10 @@ class AuthService:
                 (token_hash, now.isoformat()),
             ).fetchone()
 
-        user = row_to_dict(row)
-        if user is None:
-            return None
-        return sanitize_user(user)
+            user = row_to_dict(row)
+            if user is None:
+                return None
+            return sanitize_user(self._attach_allowed_field_ids(connection, user))
 
     def logout(self, token: str) -> None:
         token_hash = hash_token(token)
@@ -267,6 +294,44 @@ class AuthService:
             ).fetchone()
         return int(row["count"] if row else 0)
 
+    def _attach_allowed_field_ids(
+        self,
+        connection,
+        user: dict[str, Any],
+    ) -> dict[str, Any]:
+        if user.get("role") == ROLE_ADMIN:
+            return {**user, "allowed_field_ids": []}
+        rows = connection.execute(
+            """
+            SELECT field_id
+            FROM user_field_permissions
+            WHERE user_id = ?
+            ORDER BY field_id ASC
+            """,
+            (user["id"],),
+        ).fetchall()
+        return {**user, "allowed_field_ids": [int(row["field_id"]) for row in rows]}
+
+    def _replace_allowed_field_ids(
+        self,
+        connection,
+        user_id: str,
+        field_ids: list[int],
+        now: str,
+    ) -> None:
+        connection.execute(
+            "DELETE FROM user_field_permissions WHERE user_id = ?",
+            (user_id,),
+        )
+        for field_id in sorted(set(field_ids)):
+            connection.execute(
+                """
+                INSERT INTO user_field_permissions (user_id, field_id, created_at)
+                VALUES (?, ?, ?)
+                """,
+                (user_id, field_id, now),
+            )
+
 
 def hash_token(token: str) -> str:
     return hashlib.sha256(token.encode("utf-8")).hexdigest()
@@ -278,6 +343,14 @@ def sanitize_user(user: dict[str, Any]) -> dict[str, Any]:
         "username": user["username"],
         "role": user["role"],
         "is_active": bool(user["is_active"]),
+        "allowed_field_ids": sorted(
+            {
+                int(field_id)
+                for field_id in user.get("allowed_field_ids", [])
+                if isinstance(field_id, int) and field_id >= 0
+            }
+        ),
+        "field_access": "all" if user["role"] == ROLE_ADMIN else "restricted",
         "created_at": user.get("created_at"),
         "updated_at": user.get("updated_at"),
     }
@@ -311,3 +384,33 @@ def validate_password(password: str) -> None:
             "Password must be at least 6 characters.",
             400,
         )
+
+
+def validate_allowed_field_ids(value: Any) -> list[int]:
+    if value is None or value == "":
+        return []
+    if isinstance(value, str):
+        raw_items = [item.strip() for item in value.split(",") if item.strip()]
+    elif isinstance(value, (list, tuple, set)):
+        raw_items = list(value)
+    else:
+        raise AuthError(
+            "INVALID_FIELD_IDS",
+            "allowed_field_ids must be a list of non-negative integers.",
+            400,
+        )
+
+    field_ids: list[int] = []
+    for item in raw_items:
+        if isinstance(item, bool):
+            raise AuthError("INVALID_FIELD_IDS", "field_id must be a non-negative integer.", 400)
+        if isinstance(item, int):
+            field_id = item
+        elif isinstance(item, str) and item.isdigit():
+            field_id = int(item)
+        else:
+            raise AuthError("INVALID_FIELD_IDS", "field_id must be a non-negative integer.", 400)
+        if field_id < 0:
+            raise AuthError("INVALID_FIELD_IDS", "field_id must be a non-negative integer.", 400)
+        field_ids.append(field_id)
+    return sorted(set(field_ids))

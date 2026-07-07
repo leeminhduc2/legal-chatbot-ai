@@ -37,6 +37,8 @@ WARNING_LLM_UNAVAILABLE = "LLM_UNAVAILABLE"
 WARNING_AGENT_TOOL_CALLING_UNAVAILABLE = "AGENT_TOOL_CALLING_UNAVAILABLE"
 WARNING_AGENT_TIMEOUT_PARTIAL = "AGENT_TIMEOUT_PARTIAL"
 WARNING_AGENT_FALLBACK = "AGENT_FALLBACK"
+WARNING_CITATION_RELEVANCE_FILTER = "CITATION_RELEVANCE_FILTER"
+WARNING_QUERY_CONTEXTUALIZATION = "QUERY_CONTEXTUALIZATION"
 
 ACTIVE_STATUSES = {"active", "partially_effective", "partially_expired"}
 INACTIVE_STATUSES = {"expired", "replaced", "abolished", "revoked", "suspended"}
@@ -63,6 +65,7 @@ class ChatAgentState(TypedDict, total=False):
     trace_id: str
     question: str
     normalized_query: str
+    contextualized_query: str
     user_role: str
     top_k: int
     mode: str
@@ -75,6 +78,7 @@ class ChatAgentState(TypedDict, total=False):
     fused_hits: list["RetrievalHit"]
     graph_context: dict[str, Any]
     citations: list[dict[str, Any]]
+    citation_filter: dict[str, Any]
     confidence: float
     answer: str
     llm_check: dict[str, Any]
@@ -83,9 +87,18 @@ class ChatAgentState(TypedDict, total=False):
     tool_trace: list[dict[str, Any]]
     memory_used: dict[str, Any]
     expanded_chunk_ids: list[str]
+    status_sufficient: bool
+    access_scope: "AccessScope"
 
 
 class ChatLLM(Protocol):
+    def contextualize_query(
+        self,
+        current_query: str,
+        conversation_context: dict[str, Any],
+    ) -> dict[str, Any] | None:
+        ...
+
     def classify(self, question: str) -> dict[str, Any]:
         ...
 
@@ -96,6 +109,14 @@ class ChatLLM(Protocol):
         hits: list["RetrievalHit"],
         status_records: list[dict[str, Any]],
     ) -> dict[str, Any]:
+        ...
+
+    def filter_relevant_citations(
+        self,
+        question: str,
+        mode: str,
+        candidates: list[dict[str, Any]],
+    ) -> dict[str, Any] | None:
         ...
 
     def generate_answer(
@@ -119,6 +140,18 @@ class AgentToolSpec:
     func: Callable[..., str]
 
 
+@dataclass(frozen=True)
+class AccessScope:
+    unrestricted: bool = False
+    field_ids: tuple[int, ...] = (0,)
+
+    def allows(self, value: Any) -> bool:
+        if self.unrestricted:
+            return True
+        field_id = normalize_field_id(value, default=0)
+        return field_id in set(self.field_ids)
+
+
 @dataclass
 class RetrievalHit:
     chunk_id: str | None = None
@@ -130,6 +163,7 @@ class RetrievalHit:
     clause_number: str | None = None
     citation_label: str | None = None
     validity_status: str | None = None
+    field_id: int | None = None
     is_published: bool = True
     score: float = 0.0
     source: str = ""
@@ -170,6 +204,7 @@ class RetrievalHit:
             clause_number=optional_text(payload.get("clause_number")),
             citation_label=optional_text(payload.get("citation_label")),
             validity_status=normalize_validity_status(payload.get("validity_status")),
+            field_id=normalize_field_id(payload.get("field_id"), default=0),
             is_published=coerce_bool(payload.get("is_published"), default=True),
             score=float(score if score is not None else payload.get("score") or 0.0),
             source=source,
@@ -196,6 +231,7 @@ class RetrievalHit:
             "clause_number": self.clause_number,
             "article": f"Dieu {self.article_number}" if self.article_number else None,
             "validity_status": status,
+            "field_id": self.field_id if self.field_id is not None else 0,
             "is_active": is_active_status(status),
             "chunk_id": self.chunk_id,
         }
@@ -205,6 +241,48 @@ class DeepSeekChatClient:
     def __init__(self, config: Config):
         self.config = config
         self._client = None
+
+    def contextualize_query(
+        self,
+        current_query: str,
+        conversation_context: dict[str, Any],
+    ) -> dict[str, Any] | None:
+        memory = compact_conversation_context(conversation_context or {})
+        if not memory.get("summary") and not memory.get("recent_messages"):
+            return {
+                "standalone_query": current_query,
+                "used_memory": False,
+                "reason": "no conversation memory",
+            }
+        payload = {
+            "current_query": current_query,
+            "conversation_memory": memory,
+        }
+        content = self._chat_json(
+            [
+                {
+                    "role": "system",
+                    "content": (
+                        "Rewrite the current Vietnamese or English legal chatbot query into "
+                        "a standalone query using conversation memory only when needed. "
+                        "If the query is already standalone, return it unchanged. Do not answer, "
+                        "do not add legal facts, and do not invent facts missing from memory. "
+                        "Return JSON only with keys: standalone_query, used_memory, reason."
+                    ),
+                },
+                {"role": "user", "content": json.dumps(payload, ensure_ascii=False)},
+            ]
+        )
+        if not isinstance(content, dict):
+            return None
+        standalone_query = optional_text(content.get("standalone_query"))
+        if not standalone_query:
+            return None
+        return {
+            "standalone_query": standalone_query,
+            "used_memory": bool(content.get("used_memory")),
+            "reason": trim_words(str(content.get("reason") or ""), 24),
+        }
 
     def classify(self, question: str) -> dict[str, Any]:
         fallback = classify_question_heuristically(question)
@@ -268,6 +346,52 @@ class DeepSeekChatClient:
             "relevant": bool(content.get("relevant", True)),
             "confidence_delta": max(-0.1, min(0.1, delta)),
             "warnings": content.get("warnings") if isinstance(content.get("warnings"), list) else [],
+        }
+
+    def filter_relevant_citations(
+        self,
+        question: str,
+        mode: str,
+        candidates: list[dict[str, Any]],
+    ) -> dict[str, Any] | None:
+        payload = {
+            "question": question,
+            "mode": mode,
+            "candidates": [
+                {
+                    key: value
+                    for key, value in candidate.items()
+                    if key not in {"source_index", "match_key"}
+                }
+                for candidate in candidates[:12]
+            ],
+        }
+        content = self._chat_json(
+            [
+                {
+                    "role": "system",
+                    "content": (
+                        "Select only citation candidates that directly and strongly support "
+                        "answering the user's Vietnamese legal question. Same topic, weak "
+                        "keyword overlap, or merely being from the same document is not enough. "
+                        "Return JSON only with keys: relevant_keys, warnings. relevant_keys "
+                        "must be an array of candidate key strings. Do not add facts."
+                    ),
+                },
+                {"role": "user", "content": json.dumps(payload, ensure_ascii=False)},
+            ]
+        )
+        if not isinstance(content, dict) or not isinstance(content.get("relevant_keys"), list):
+            return None
+        relevant_keys = [
+            str(item)
+            for item in content.get("relevant_keys", [])
+            if isinstance(item, (str, int))
+        ]
+        warnings = content.get("warnings")
+        return {
+            "relevant_keys": relevant_keys,
+            "warnings": warnings if isinstance(warnings, list) else [],
         }
 
     def generate_answer(
@@ -403,7 +527,7 @@ class ChromaVectorRetriever:
             query_embedding = self.embedding_provider.embed_documents([query])[0]
             result = collection.query(
                 query_embeddings=[query_embedding],
-                n_results=max(top_k * 2, top_k),
+                n_results=max(top_k * 4, top_k),
                 where={"is_published": 1},
                 include=["documents", "metadatas", "distances"],
             )
@@ -452,6 +576,18 @@ class ElasticsearchBM25Retriever:
         try:
             client = self._get_client()
             filter_clauses: list[dict[str, Any]] = [{"term": {"is_published": True}}]
+            access_scope = access_scope_from_filters(filters)
+            if not access_scope.unrestricted:
+                field_should: list[dict[str, Any]] = [
+                    {"terms": {"field_id": list(access_scope.field_ids)}}
+                ]
+                if 0 in access_scope.field_ids:
+                    field_should.append(
+                        {"bool": {"must_not": {"exists": {"field": "field_id"}}}}
+                    )
+                filter_clauses.append(
+                    {"bool": {"should": field_should, "minimum_should_match": 1}}
+                )
             if filters.get("document_number"):
                 filter_clauses.append({"term": {"document_number": filters["document_number"]}})
             if filters.get("article_number"):
@@ -530,9 +666,15 @@ class FixedNeo4jContextRetriever:
         self.config = config
         self._driver = None
 
-    def enrich(self, hits: list[RetrievalHit], top_k: int) -> dict[str, Any]:
+    def enrich(
+        self,
+        hits: list[RetrievalHit],
+        top_k: int,
+        access_scope: AccessScope | None = None,
+    ) -> dict[str, Any]:
         if not hits or not self.config.neo4j_password:
             return {"related_documents": [], "effectivity_relations": [], "support_score": 0.0}
+        access_scope = access_scope or AccessScope()
         try:
             driver = self._get_driver()
             related: list[dict[str, Any]] = []
@@ -561,12 +703,19 @@ class FixedNeo4jContextRetriever:
                             MATCH (d:Document {document_id: $document_id})
                                   -[r:ADMIN_RELATION]->(target)
                             WHERE coalesce(r.is_published, false) = true
+                              AND (
+                                  $unrestricted = true
+                                  OR coalesce(target.field_id, 0) IN $field_ids
+                              )
                             RETURN r.relation_type AS relation_type,
                                    r.source_text AS source_text,
-                                   target.document_number AS target_document_number
+                                   target.document_number AS target_document_number,
+                                   coalesce(target.field_id, 0) AS field_id
                             LIMIT 10
                             """,
                             document_id=hit.document_id,
+                            unrestricted=access_scope.unrestricted,
+                            field_ids=list(access_scope.field_ids),
                         )
                         related.extend(dict(record) for record in result)
             support = 0.0
@@ -609,6 +758,7 @@ class DocumentStatusRepository:
 
     def find_status_records(self, query: str, filters: dict[str, str], limit: int) -> list[dict[str, Any]]:
         terms = [filters.get("document_number"), query]
+        access_scope = access_scope_from_filters(filters)
         rows: list[dict[str, Any]] = []
         with get_connection(self.db_path) as connection:
             for term in terms:
@@ -617,36 +767,58 @@ class DocumentStatusRepository:
                     continue
                 like = f"%{cleaned}%"
                 records = connection.execute(
-                    """
+                    f"""
                     SELECT document_id, document_number, title, validity_status,
-                           effective_date, expiry_date, is_published, active_version
+                           field_id, effective_date, expiry_date, is_published, active_version
                     FROM document_registry
                     WHERE is_published = 1
                       AND (document_number LIKE ? OR title LIKE ?)
+                      {field_scope_sql(access_scope)}
                     ORDER BY updated_at DESC
                     LIMIT ?
                     """,
-                    (like, like, limit),
+                    (like, like, *field_scope_params(access_scope), limit),
                 ).fetchall()
                 for row in records:
                     item = dict(row)
-                    item["relations"] = self._relations_for(connection, item["document_id"])
+                    item["relations"] = self._relations_for(
+                        connection,
+                        item["document_id"],
+                        access_scope,
+                    )
                     if item["document_id"] not in {record["document_id"] for record in rows}:
                         rows.append(item)
                 if len(rows) >= limit:
                     break
         return rows[:limit]
 
-    def _relations_for(self, connection, document_id: str) -> list[dict[str, Any]]:
+    def _relations_for(
+        self,
+        connection,
+        document_id: str,
+        access_scope: AccessScope,
+    ) -> list[dict[str, Any]]:
         rows = connection.execute(
-            """
-            SELECT relation_type, target_document_id, target_document_number, source_text
-            FROM document_relations
-            WHERE source_document_id = ? AND is_published = 1
-            ORDER BY created_at DESC
+            f"""
+            SELECT dr.relation_type,
+                   dr.target_document_id,
+                   dr.target_document_number,
+                   dr.source_text
+            FROM document_relations dr
+            LEFT JOIN document_registry target
+              ON target.document_id = dr.target_document_id
+              OR (
+                  dr.target_document_number IS NOT NULL
+                  AND target.document_number = dr.target_document_number
+                  AND target.is_deleted = 0
+              )
+            WHERE dr.source_document_id = ?
+              AND dr.is_published = 1
+              {field_scope_sql(access_scope, table_alias='target', allow_unresolved=True)}
+            ORDER BY dr.created_at DESC
             LIMIT 10
             """,
-            (document_id,),
+            (document_id, *field_scope_params(access_scope)),
         ).fetchall()
         return [dict(row) for row in rows]
 
@@ -696,11 +868,13 @@ class ChatAgentService:
     ) -> dict[str, Any]:
         trace_id = str(uuid.uuid4())
         user_role = user["role"] if user else ROLE_GUEST
+        access_scope = access_scope_for_user(user)
         memory_used = build_memory_used(conversation_context or {})
         state: ChatAgentState = {
             "trace_id": trace_id,
             "question": message,
             "normalized_query": message,
+            "contextualized_query": "",
             "user_role": user_role,
             "top_k": resolve_top_k(requested_top_k, user_role),
             "mode": MODE_LEGAL_LOOKUP,
@@ -712,6 +886,9 @@ class ChatAgentService:
             "tool_trace": [],
             "memory_used": memory_used,
             "expanded_chunk_ids": [],
+            "citation_filter": {},
+            "status_sufficient": False,
+            "access_scope": access_scope,
         }
         started = time.perf_counter()
         try:
@@ -820,33 +997,42 @@ class ChatAgentService:
         except ImportError:
             return None
         builder = StateGraph(ChatAgentState)
+        builder.add_node("contextualize_query", self._contextualize_query)
         builder.add_node("route_intent", self._route_intent)
         builder.add_node("resolve_exact_status", self._resolve_exact_status)
+        builder.add_node("decide_status_sufficiency", self._decide_status_sufficiency)
         builder.add_node("vector_retrieve", self._vector_retrieve)
         builder.add_node("bm25_retrieve", self._bm25_retrieve)
-        builder.add_node("graph_enrich", self._graph_enrich)
         builder.add_node("fuse_and_rerank", self._fuse_and_rerank)
+        builder.add_node("citation_relevance_filter", self._filter_citations_by_relevance)
+        builder.add_node("graph_enrich", self._graph_enrich)
         builder.add_node("evidence_check", self._evidence_check)
         builder.add_node("generate_output", self._generate_output)
-        builder.add_edge(START, "route_intent")
+        builder.add_edge(START, "contextualize_query")
+        builder.add_edge("contextualize_query", "route_intent")
         builder.add_edge("route_intent", "resolve_exact_status")
-        builder.add_edge("resolve_exact_status", "vector_retrieve")
+        builder.add_edge("resolve_exact_status", "decide_status_sufficiency")
+        builder.add_edge("decide_status_sufficiency", "vector_retrieve")
         builder.add_edge("vector_retrieve", "bm25_retrieve")
-        builder.add_edge("bm25_retrieve", "graph_enrich")
-        builder.add_edge("graph_enrich", "fuse_and_rerank")
-        builder.add_edge("fuse_and_rerank", "evidence_check")
+        builder.add_edge("bm25_retrieve", "fuse_and_rerank")
+        builder.add_edge("fuse_and_rerank", "citation_relevance_filter")
+        builder.add_edge("citation_relevance_filter", "graph_enrich")
+        builder.add_edge("graph_enrich", "evidence_check")
         builder.add_edge("evidence_check", "generate_output")
         builder.add_edge("generate_output", END)
         return builder.compile()
 
     def _run_without_langgraph(self, state: ChatAgentState) -> ChatAgentState:
         for node in (
+            self._contextualize_query,
             self._route_intent,
             self._resolve_exact_status,
+            self._decide_status_sufficiency,
             self._vector_retrieve,
             self._bm25_retrieve,
-            self._graph_enrich,
             self._fuse_and_rerank,
+            self._filter_citations_by_relevance,
+            self._graph_enrich,
             self._evidence_check,
             self._generate_output,
         ):
@@ -859,10 +1045,11 @@ class ChatAgentService:
         started: float,
     ) -> ChatAgentState:
         deadline = started + max(1, self.config.chat_agent_timeout_seconds)
+        state.update(self._contextualize_query(state))
         state["agent_steps"] = append_agent_step(
             state.get("agent_steps", []),
             "route",
-            "Classified query, extracted filters, and prepared conversation memory.",
+            "Classified query and extracted filters.",
             "ok",
         )
         state.update(self._route_intent(state))
@@ -879,7 +1066,9 @@ class ChatAgentService:
             deadline=deadline,
         )
         self._ensure_retrieval_baseline(state)
+        state.update(self._decide_status_sufficiency(state))
         state.update(self._fuse_and_rerank(state))
+        state.update(self._filter_citations_by_relevance(state))
         if not state.get("citations"):
             state.update(self._evidence_check(state))
             state.update(self._generate_output(state))
@@ -1019,15 +1208,16 @@ class ChatAgentService:
         ]
 
     def _ensure_retrieval_baseline(self, state: ChatAgentState) -> None:
+        query = state.get("normalized_query") or state["question"]
         if state.get("mode") == MODE_STATUS_BASIC and not tool_was_called(
             state,
             "status_lookup",
         ):
-            self._agent_status_lookup(state, state["question"], "", state["top_k"])
+            self._agent_status_lookup(state, query, "", state["top_k"])
         if not tool_was_called(state, "vector_search"):
-            self._agent_vector_search(state, state["question"], state["top_k"])
+            self._agent_vector_search(state, query, state["top_k"])
         if not tool_was_called(state, "bm25_search"):
-            self._agent_bm25_search(state, state["question"], state["top_k"])
+            self._agent_bm25_search(state, query, state["top_k"])
 
     def _ensure_expansion_baseline(self, state: ChatAgentState) -> None:
         if state.get("fused_hits") and not tool_was_called(state, "graph_context"):
@@ -1084,7 +1274,7 @@ class ChatAgentService:
         limit: Any = 0,
     ) -> str:
         started = time.perf_counter()
-        filters = dict(state.get("filters", {}))
+        filters = filters_with_access_scope(state)
         if optional_text(document_number):
             filters["document_number"] = str(document_number).strip()
         lookup_query = optional_text(query) or state.get("normalized_query") or state["question"]
@@ -1119,9 +1309,10 @@ class ChatAgentService:
             hits = self.vector_retriever.search(
                 lookup_query,
                 lookup_top_k,
-                state.get("filters", {}),
+                filters_with_access_scope(state),
                 should_include_expired(state),
             )
+            hits = filter_hits_for_access(hits, access_scope_from_state(state))
             state["vector_hits"] = hits
             result = {"hits": serialize_hits(hits), "count": len(hits)}
             self._record_tool_trace(
@@ -1146,9 +1337,10 @@ class ChatAgentService:
             hits = self.bm25_retriever.search(
                 lookup_query,
                 lookup_top_k,
-                state.get("filters", {}),
+                filters_with_access_scope(state),
                 should_include_expired(state),
             )
+            hits = filter_hits_for_access(hits, access_scope_from_state(state))
             state["bm25_hits"] = hits
             result = {"hits": serialize_hits(hits), "count": len(hits)}
             self._record_tool_trace(
@@ -1171,7 +1363,12 @@ class ChatAgentService:
             [state.get("vector_hits", []), state.get("bm25_hits", [])],
             state["top_k"],
         )
-        graph_context = self.graph_retriever.enrich(hits, state["top_k"])
+        graph_context = graph_enrich_with_scope(
+            self.graph_retriever,
+            hits,
+            state["top_k"],
+            access_scope_from_state(state),
+        )
         state["graph_context"] = graph_context
         result_count = len(graph_context.get("related_documents") or [])
         self._record_tool_trace(
@@ -1298,8 +1495,72 @@ class ChatAgentService:
         if self._timed_out(deadline):
             raise AgentTimeout("chat agent time budget exceeded")
 
+    def _contextualize_query(self, state: ChatAgentState) -> ChatAgentState:
+        if state.get("contextualized_query"):
+            return {}
+        current_query = state.get("normalized_query") or state["question"]
+        context = state.get("conversation_context", {})
+        memory_used = dict(state.get("memory_used", build_memory_used(context)))
+        if not has_conversation_memory(context):
+            memory_used["contextualized_query_used"] = False
+            return {
+                "normalized_query": current_query,
+                "contextualized_query": current_query,
+                "memory_used": memory_used,
+            }
+        try:
+            result = self.llm.contextualize_query(current_query, context)
+        except Exception as exc:
+            logger.warning(
+                "Query contextualization failed trace_id=%s error=%s",
+                state.get("trace_id"),
+                type(exc).__name__,
+            )
+            result = None
+        if not isinstance(result, dict) or not optional_text(result.get("standalone_query")):
+            memory_used["contextualized_query_used"] = False
+            warnings = append_warning(
+                state.get("warnings", []),
+                WARNING_QUERY_CONTEXTUALIZATION,
+                "Conversation memory could not be applied to the current query; using the original query.",
+            )
+            return {
+                "normalized_query": current_query,
+                "contextualized_query": current_query,
+                "memory_used": memory_used,
+                "warnings": warnings,
+                "agent_steps": append_agent_step(
+                    state.get("agent_steps", []),
+                    "contextualize_query",
+                    "Conversation memory was unavailable for query contextualization.",
+                    "warning",
+                ),
+            }
+        standalone_query = optional_text(result.get("standalone_query")) or current_query
+        used_memory = bool(result.get("used_memory")) or standalone_query != current_query
+        memory_used["contextualized_query_used"] = used_memory
+        reason = optional_text(result.get("reason"))
+        message = (
+            "Rewrote the current query using conversation memory."
+            if used_memory
+            else "Current query was already standalone; conversation memory was not applied."
+        )
+        if reason:
+            message = f"{message} Reason: {trim_words(reason, 18)}"
+        return {
+            "normalized_query": standalone_query,
+            "contextualized_query": standalone_query,
+            "memory_used": memory_used,
+            "agent_steps": append_agent_step(
+                state.get("agent_steps", []),
+                "contextualize_query",
+                message,
+                "ok",
+            ),
+        }
+
     def _route_intent(self, state: ChatAgentState) -> ChatAgentState:
-        question = state["question"]
+        question = state.get("normalized_query") or state["question"]
         route = self.llm.classify(question)
         mode = route.get("mode") if route.get("mode") in {
             MODE_LEGAL_LOOKUP,
@@ -1322,10 +1583,19 @@ class ChatAgentService:
         if mode == MODE_STATUS_BASIC:
             records = self.status_repository.find_status_records(
                 state.get("normalized_query") or state["question"],
-                state.get("filters", {}),
+                filters_with_access_scope(state),
                 state["top_k"],
             )
         return {"status_records": records}
+
+    def _decide_status_sufficiency(self, state: ChatAgentState) -> ChatAgentState:
+        records = state.get("status_records", [])
+        sufficient = state.get("mode") == MODE_STATUS_BASIC and any(
+            not is_unknown_status(record.get("validity_status"))
+            or bool(record.get("relations"))
+            for record in records
+        )
+        return {"status_sufficient": sufficient}
 
     def _vector_retrieve(self, state: ChatAgentState) -> ChatAgentState:
         if state.get("mode") == MODE_OUT_OF_SCOPE:
@@ -1335,9 +1605,10 @@ class ChatAgentService:
             hits = self.vector_retriever.search(
                 state.get("normalized_query") or state["question"],
                 state["top_k"],
-                state.get("filters", {}),
+                filters_with_access_scope(state),
                 include_expired,
             )
+            hits = filter_hits_for_access(hits, access_scope_from_state(state))
             return {"vector_hits": hits}
         except RetrieverUnavailable as exc:
             return {
@@ -1357,9 +1628,10 @@ class ChatAgentService:
             hits = self.bm25_retriever.search(
                 state.get("normalized_query") or state["question"],
                 state["top_k"],
-                state.get("filters", {}),
+                filters_with_access_scope(state),
                 include_expired,
             )
+            hits = filter_hits_for_access(hits, access_scope_from_state(state))
             return {"bm25_hits": hits}
         except RetrieverUnavailable as exc:
             return {
@@ -1372,8 +1644,17 @@ class ChatAgentService:
             }
 
     def _graph_enrich(self, state: ChatAgentState) -> ChatAgentState:
+        if state.get("mode") in {MODE_OUT_OF_SCOPE, MODE_INSUFFICIENT_EVIDENCE}:
+            return {"graph_context": {}}
         hits = [*state.get("vector_hits", []), *state.get("bm25_hits", [])]
-        graph_context = self.graph_retriever.enrich(hits, state["top_k"])
+        if state.get("fused_hits") is not None:
+            hits = state.get("fused_hits", [])
+        graph_context = graph_enrich_with_scope(
+            self.graph_retriever,
+            hits,
+            state["top_k"],
+            access_scope_from_state(state),
+        )
         return {"graph_context": graph_context}
 
     def _fuse_and_rerank(self, state: ChatAgentState) -> ChatAgentState:
@@ -1397,6 +1678,141 @@ class ChatAgentService:
             "fused_hits": fused,
             "citations": citations,
             "warnings": warnings,
+        }
+
+    def _filter_citations_by_relevance(self, state: ChatAgentState) -> ChatAgentState:
+        if state.get("mode") == MODE_OUT_OF_SCOPE:
+            return {"citations": []}
+        started = time.perf_counter()
+        hits = state.get("fused_hits", [])
+        status_records = state.get("status_records", [])
+        candidates = build_citation_relevance_candidates(hits, status_records)
+        candidate_count = len(candidates)
+        if not candidates:
+            return self._citation_filter_result(
+                state,
+                started,
+                candidates=[],
+                relevant_keys=set(),
+                status="warning",
+                trace_warnings=["no_candidates"],
+            )
+        try:
+            result = self.llm.filter_relevant_citations(
+                state.get("normalized_query") or state["question"],
+                state.get("mode", MODE_LEGAL_LOOKUP),
+                candidates,
+            )
+        except Exception as exc:
+            logger.warning(
+                "Citation relevance gate failed trace_id=%s error=%s",
+                state.get("trace_id"),
+                type(exc).__name__,
+            )
+            result = None
+        if not isinstance(result, dict) or not isinstance(result.get("relevant_keys"), list):
+            warnings = append_warning(
+                state.get("warnings", []),
+                WARNING_CITATION_RELEVANCE_FILTER,
+                "Citation relevance gate was unavailable; no citations were exposed.",
+            )
+            return self._citation_filter_result(
+                {**state, "warnings": warnings},
+                started,
+                candidates=candidates,
+                relevant_keys=set(),
+                status="error",
+                trace_warnings=["gate_unavailable"],
+            )
+        relevant_keys = {
+            str(key)
+            for key in result.get("relevant_keys", [])
+            if str(key) in {candidate["key"] for candidate in candidates}
+        }
+        trace_warnings = [
+            str(item)
+            for item in result.get("warnings", [])
+            if isinstance(item, (str, int))
+        ]
+        filter_status = "ok" if relevant_keys else "warning"
+        if not relevant_keys:
+            trace_warnings = [*trace_warnings, "no_high_relevance_citation"]
+        return self._citation_filter_result(
+            state,
+            started,
+            candidates=candidates,
+            relevant_keys=relevant_keys,
+            status=filter_status,
+            trace_warnings=trace_warnings,
+            candidate_count=candidate_count,
+        )
+
+    def _citation_filter_result(
+        self,
+        state: ChatAgentState,
+        started: float,
+        *,
+        candidates: list[dict[str, Any]],
+        relevant_keys: set[str],
+        status: str,
+        trace_warnings: list[str],
+        candidate_count: int | None = None,
+    ) -> ChatAgentState:
+        candidate_count = len(candidates) if candidate_count is None else candidate_count
+        filtered_hits = []
+        for hit in state.get("fused_hits", []):
+            index = candidate_index_by_kind(candidates, "hit", hit)
+            if hit_candidate_key(hit, index) in relevant_keys:
+                filtered_hits.append(hit)
+        filtered_status_records = []
+        for record in state.get("status_records", []):
+            index = candidate_index_by_kind(candidates, "status_record", record)
+            if status_candidate_key(record, index) in relevant_keys:
+                filtered_status_records.append(record)
+        citations = unique_citations(
+            [hit.citation() for hit in filtered_hits]
+            + [citation_from_status_record(record) for record in filtered_status_records]
+        )
+        warnings = state.get("warnings", [])
+        mode = state.get("mode", MODE_LEGAL_LOOKUP)
+        if candidate_count and not citations:
+            warnings = append_warning(
+                warnings,
+                WARNING_LOW_RELEVANCE,
+                "No retrieved citation was judged highly relevant to the question.",
+            )
+            mode = MODE_INSUFFICIENT_EVIDENCE
+        agent_steps = append_agent_step(
+            state.get("agent_steps", []),
+            "citation_relevance_filter",
+            f"Kept {len(citations)} of {candidate_count} candidate citations after relevance checking.",
+            status if status in {"ok", "warning", "error"} else "warning",
+        )
+        trace = {
+            "tool": "citation_relevance_filter",
+            "phase": "evidence",
+            "input_summary": summarize_tool_input({"candidate_count": candidate_count}),
+            "result_count": len(citations),
+            "duration_ms": int((time.perf_counter() - started) * 1000),
+            "status": status,
+            "warnings": trace_warnings,
+        }
+        return {
+            "mode": mode,
+            "fused_hits": filtered_hits,
+            "status_records": filtered_status_records,
+            "citations": citations,
+            "warnings": warnings,
+            "agent_steps": agent_steps,
+            "tool_trace": [*state.get("tool_trace", []), trace],
+            "status_sufficient": bool(filtered_status_records) and bool(
+                state.get("status_sufficient")
+            ),
+            "citation_filter": {
+                "candidate_count": candidate_count,
+                "kept_count": len(citations),
+                "relevant_keys": sorted(relevant_keys),
+            },
         }
 
     def _evidence_check(self, state: ChatAgentState) -> ChatAgentState:
@@ -1423,7 +1839,7 @@ class ChatAgentService:
                 "llm_check": {},
             }
         llm_check = self.llm.check_evidence(
-            state["question"],
+            state.get("normalized_query") or state["question"],
             state.get("mode", MODE_LEGAL_LOOKUP),
             hits,
             status_records,
@@ -1486,7 +1902,7 @@ class ChatAgentService:
                 "confidence": 0.0,
             }
         answer = self.llm.generate_answer(
-            state["question"],
+            state.get("normalized_query") or state["question"],
             mode,
             state.get("fused_hits", []),
             state.get("status_records", []),
@@ -1510,6 +1926,76 @@ def resolve_top_k(raw_top_k: Any, user_role: str) -> int:
     except (TypeError, ValueError):
         value = default
     return max(1, min(maximum, value))
+
+
+def access_scope_for_user(user: dict[str, Any] | None) -> AccessScope:
+    if user and user.get("role") == ROLE_ADMIN:
+        return AccessScope(unrestricted=True, field_ids=())
+    allowed = [0]
+    if user:
+        allowed.extend(user.get("allowed_field_ids") or [])
+    field_ids = sorted(
+        {
+            normalize_field_id(field_id, default=0)
+            for field_id in allowed
+            if normalize_field_id(field_id, default=0) >= 0
+        }
+    )
+    return AccessScope(unrestricted=False, field_ids=tuple(field_ids or [0]))
+
+
+def access_scope_from_state(state: ChatAgentState) -> AccessScope:
+    scope = state.get("access_scope")
+    return scope if isinstance(scope, AccessScope) else AccessScope()
+
+
+def filters_with_access_scope(state: ChatAgentState) -> dict[str, Any]:
+    return {**state.get("filters", {}), "_access_scope": access_scope_from_state(state)}
+
+
+def access_scope_from_filters(filters: dict[str, Any]) -> AccessScope:
+    scope = filters.get("_access_scope") if isinstance(filters, dict) else None
+    return scope if isinstance(scope, AccessScope) else AccessScope()
+
+
+def field_scope_sql(
+    access_scope: AccessScope,
+    *,
+    table_alias: str = "",
+    allow_unresolved: bool = False,
+) -> str:
+    if access_scope.unrestricted:
+        return ""
+    prefix = f"{table_alias}." if table_alias else ""
+    placeholders = ", ".join("?" for _ in access_scope.field_ids)
+    field_expr = f"COALESCE({prefix}field_id, 0)"
+    if allow_unresolved:
+        resolved_expr = f"{prefix}document_id IS NULL" if table_alias else "document_id IS NULL"
+        return f"AND ({resolved_expr} OR {field_expr} IN ({placeholders}))"
+    return f"AND {field_expr} IN ({placeholders})"
+
+
+def field_scope_params(access_scope: AccessScope) -> tuple[int, ...]:
+    return () if access_scope.unrestricted else tuple(access_scope.field_ids)
+
+
+def graph_enrich_with_scope(
+    graph_retriever: Any,
+    hits: list[RetrievalHit],
+    top_k: int,
+    access_scope: AccessScope,
+) -> dict[str, Any]:
+    try:
+        return graph_retriever.enrich(hits, top_k, access_scope=access_scope)
+    except TypeError:
+        return graph_retriever.enrich(hits, top_k)
+
+
+def filter_hits_for_access(
+    hits: list[RetrievalHit],
+    access_scope: AccessScope,
+) -> list[RetrievalHit]:
+    return [hit for hit in hits if access_scope.allows(hit.field_id)]
 
 
 def classify_question_heuristically(question: str) -> dict[str, Any]:
@@ -1550,6 +2036,8 @@ def hit_allowed(
     filters: dict[str, str],
     include_expired: bool,
 ) -> bool:
+    if not access_scope_from_filters(filters).allows(hit.field_id):
+        return False
     if filters.get("document_number") and hit.document_number != filters["document_number"]:
         return False
     if filters.get("article_number") and hit.article_number != filters["article_number"]:
@@ -1669,11 +2157,21 @@ def insufficient_evidence_response(
         "trace_id": trace_id,
         "agent_steps": agent_steps or [],
         "tool_trace": tool_trace or [],
-        "memory_used": memory_used or {"recent_message_count": 0, "summary_used": False},
+        "memory_used": memory_used
+        or {
+            "recent_message_count": 0,
+            "summary_used": False,
+            "contextualized_query_used": False,
+        },
         "agent_timeline": heuristic_agent_timeline(
             agent_steps or [],
             tool_trace or [],
-            memory_used or {"recent_message_count": 0, "summary_used": False},
+            memory_used
+            or {
+                "recent_message_count": 0,
+                "summary_used": False,
+                "contextualized_query_used": False,
+            },
             warnings,
             MODE_INSUFFICIENT_EVIDENCE,
         ),
@@ -1693,6 +2191,7 @@ def citation_from_status_record(record: dict[str, Any]) -> dict[str, Any]:
         "clause_number": None,
         "article": None,
         "validity_status": status,
+        "field_id": normalize_field_id(record.get("field_id"), default=0),
         "is_active": is_active_status(status),
         "chunk_id": None,
     }
@@ -1713,6 +2212,102 @@ def unique_citations(citations: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return unique
 
 
+def build_citation_relevance_candidates(
+    hits: list[RetrievalHit],
+    status_records: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    candidates: list[dict[str, Any]] = []
+    for index, hit in enumerate(hits):
+        candidates.append(
+            {
+                "key": hit_candidate_key(hit, index),
+                "kind": "hit",
+                "source_index": index,
+                "match_key": hit_relevance_match_key(hit),
+                "citation": hit.citation(),
+                "source": hit.source,
+                "sources": sorted(hit.sources),
+                "content": trim_words(hit.content, 180),
+            }
+        )
+    for index, record in enumerate(status_records):
+        compact = compact_status_records([record])
+        candidates.append(
+            {
+                "key": status_candidate_key(record, index),
+                "kind": "status_record",
+                "source_index": index,
+                "match_key": status_record_relevance_match_key(record),
+                "citation": citation_from_status_record(record),
+                "status_record": compact[0] if compact else {},
+            }
+        )
+    return candidates
+
+
+def hit_candidate_key(hit: RetrievalHit, index: int) -> str:
+    label = (
+        optional_text(hit.chunk_id)
+        or optional_text(hit.document_id)
+        or optional_text(hit.document_number)
+        or f"rank-{index}"
+    )
+    if hit.article_number:
+        label = f"{label}:article-{hit.article_number}"
+    if hit.clause_number:
+        label = f"{label}:clause-{hit.clause_number}"
+    return f"hit:{index}:{label}"
+
+
+def status_candidate_key(record: dict[str, Any], index: int) -> str:
+    label = (
+        optional_text(record.get("document_id"))
+        or optional_text(record.get("document_number"))
+        or optional_text(record.get("title"))
+        or f"rank-{index}"
+    )
+    return f"status:{index}:{label}"
+
+
+def candidate_index_by_kind(
+    candidates: list[dict[str, Any]],
+    kind: str,
+    item: RetrievalHit | dict[str, Any],
+) -> int:
+    match_key = (
+        hit_relevance_match_key(item)
+        if isinstance(item, RetrievalHit)
+        else status_record_relevance_match_key(item)
+    )
+    for candidate in candidates:
+        if candidate.get("kind") == kind and candidate.get("match_key") == match_key:
+            return int_safe(candidate.get("source_index"), -1)
+    return -1
+
+
+def hit_relevance_match_key(hit: RetrievalHit) -> str:
+    parts = [
+        hit.chunk_id,
+        hit.document_id,
+        hit.document_number,
+        hit.article_number,
+        hit.clause_number,
+        hit.citation_label,
+    ]
+    key = "|".join(str(part or "") for part in parts).strip("|")
+    return key or trim_words(hit.content, 24)
+
+
+def status_record_relevance_match_key(record: dict[str, Any]) -> str:
+    parts = [
+        record.get("document_id"),
+        record.get("document_number"),
+        record.get("title"),
+        record.get("validity_status"),
+    ]
+    return "|".join(str(part or "") for part in parts).strip("|")
+
+
 def compact_status_records(records: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return [
         {
@@ -1720,6 +2315,7 @@ def compact_status_records(records: list[dict[str, Any]]) -> list[dict[str, Any]
             "document_number": record.get("document_number"),
             "title": record.get("title"),
             "validity_status": record.get("validity_status"),
+            "field_id": normalize_field_id(record.get("field_id"), default=0),
             "effective_date": record.get("effective_date"),
             "expiry_date": record.get("expiry_date"),
             "relations": record.get("relations") or [],
@@ -1747,11 +2343,19 @@ def compact_conversation_context(context: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def has_conversation_memory(context: dict[str, Any]) -> bool:
+    if not isinstance(context, dict):
+        return False
+    recent = context.get("recent_messages")
+    return bool(context.get("summary")) or bool(recent if isinstance(recent, list) else [])
+
+
 def build_memory_used(context: dict[str, Any]) -> dict[str, Any]:
     recent = context.get("recent_messages") if isinstance(context, dict) else []
     return {
         "recent_message_count": len(recent) if isinstance(recent, list) else 0,
         "summary_used": bool(context.get("summary")) if isinstance(context, dict) else False,
+        "contextualized_query_used": False,
     }
 
 
@@ -1982,6 +2586,22 @@ def normalize_validity_status(value: Any) -> str | None:
     if not text:
         return None
     return text.lower()
+
+
+def normalize_field_id(value: Any, default: int = 0) -> int:
+    if value is None or value == "":
+        return default
+    if isinstance(value, bool):
+        return default
+    if isinstance(value, int):
+        return value if value >= 0 else default
+    if isinstance(value, float):
+        return int(value) if value.is_integer() and value >= 0 else default
+    if isinstance(value, str):
+        text = value.strip()
+        if text.isdigit():
+            return int(text)
+    return default
 
 
 def is_active_status(status: Any) -> bool:

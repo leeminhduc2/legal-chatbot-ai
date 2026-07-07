@@ -10,6 +10,17 @@ CREATE TABLE IF NOT EXISTS users (
     updated_at TEXT NOT NULL
 );
 
+CREATE TABLE IF NOT EXISTS user_field_permissions (
+    user_id TEXT NOT NULL,
+    field_id INTEGER NOT NULL CHECK (field_id >= 0),
+    created_at TEXT NOT NULL,
+    PRIMARY KEY (user_id, field_id),
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_user_field_permissions_user_id
+ON user_field_permissions(user_id);
+
 CREATE TABLE IF NOT EXISTS auth_sessions (
     id TEXT PRIMARY KEY,
     user_id TEXT NOT NULL,
@@ -92,6 +103,7 @@ CREATE TABLE IF NOT EXISTS document_registry (
     effective_date TEXT,
     expiry_date TEXT,
     validity_status TEXT,
+    field_id INTEGER CHECK (field_id IS NULL OR field_id >= 0),
     raw_metadata_json TEXT,
     active_version INTEGER,
     is_published INTEGER NOT NULL DEFAULT 0 CHECK (is_published IN (0, 1)),
@@ -105,6 +117,9 @@ ON document_registry(document_number);
 
 CREATE INDEX IF NOT EXISTS idx_document_registry_validity_status
 ON document_registry(validity_status);
+
+CREATE INDEX IF NOT EXISTS idx_document_registry_field_id
+ON document_registry(field_id);
 
 CREATE TABLE IF NOT EXISTS document_versions (
     id TEXT PRIMARY KEY,

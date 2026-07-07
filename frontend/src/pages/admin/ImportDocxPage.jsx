@@ -7,12 +7,18 @@ import './AdminPage.css';
 export default function ImportDocxPage() {
   const { t } = useTranslation();
   const [files, setFiles] = useState([]);
+  const [fieldId, setFieldId] = useState('');
   const [busy, setBusy] = useState(false);
   const [results, setResults] = useState([]);
 
   const handleImport = async (e) => {
     e.preventDefault();
     if (!files.length) return;
+    const normalizedFieldId = fieldId.trim();
+    if (normalizedFieldId && !/^\d+$/.test(normalizedFieldId)) {
+      toast.error(t('admin.users.field_ids_invalid'));
+      return;
+    }
 
     setBusy(true);
     setResults([]);
@@ -23,6 +29,9 @@ export default function ImportDocxPage() {
         const form = new FormData();
         form.append('file', file);
         form.append('is_legal_document', 'false');
+        if (normalizedFieldId) {
+          form.append('field_id', normalizedFieldId);
+        }
 
         const res = await api('/admin/documents/import', { method: 'POST', body: form });
         const data = await res.json();
@@ -41,6 +50,7 @@ export default function ImportDocxPage() {
     if (successCount === nextResults.length) {
       toast.success(`${successCount}/${nextResults.length} files imported.`);
       setFiles([]);
+      setFieldId('');
       e.target.reset();
     } else {
       toast.error(`${successCount}/${nextResults.length} files imported.`);
@@ -64,6 +74,19 @@ export default function ImportDocxPage() {
             multiple
             onChange={(e) => setFiles(Array.from(e.target.files || []))}
             disabled={busy}
+          />
+        </div>
+
+        <div className="form-group">
+          <label>{t('admin.import.fields.field_id')}</label>
+          <input
+            type="number"
+            min="0"
+            step="1"
+            value={fieldId}
+            onChange={(e) => setFieldId(e.target.value)}
+            disabled={busy}
+            placeholder="0"
           />
         </div>
 

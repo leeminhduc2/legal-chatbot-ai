@@ -35,6 +35,7 @@ REQUIRED_PUBLISH_FIELDS = (
     "issued_date",
     "effective_date",
     "validity_status",
+    "field_id",
 )
 METADATA_UPDATE_FIELDS = {
     "document_number",
@@ -48,6 +49,7 @@ METADATA_UPDATE_FIELDS = {
     "effective_date",
     "expiry_date",
     "validity_status",
+    "field_id",
 }
 
 
@@ -76,6 +78,7 @@ class ImportMetadata:
     effective_date: str | None
     expiry_date: str | None
     validity_status: str
+    field_id: int | None
     signer_title: str | None
     signer_name: str | None
     document_type: str | None
@@ -113,6 +116,7 @@ class DocumentImportService:
                 "expiry_date": optional_str(form_data.get("expiry_date")),
                 "validity_status": optional_str(form_data.get("validity_status"))
                 or VALIDITY_UNKNOWN,
+                "field_id": optional_str(form_data.get("field_id")),
                 "import_batch_id": import_batch_id,
                 "relations_json_provided": bool(
                     optional_str(form_data.get("relations_json"))
@@ -263,6 +267,7 @@ class DocumentImportService:
                     "issued_date": metadata.issued_date,
                     "effective_date": metadata.effective_date,
                     "validity_status": metadata.validity_status,
+                    "field_id": metadata.field_id,
                 }
             )
 
@@ -276,6 +281,7 @@ class DocumentImportService:
                 "is_publishable": not publish_blockers,
                 "document_number": metadata.document_number,
                 "title": metadata.title,
+                "field_id": metadata.field_id,
                 "raw_docx_path": str(raw_docx_path),
                 "preprocessed_text_path": str(preprocessed_text_path),
                 "chunk_json_path": str(chunk_json_path),
@@ -691,7 +697,14 @@ class DocumentImportService:
         payload: dict[str, Any],
     ) -> dict[str, Any]:
         allowed_fields = METADATA_UPDATE_FIELDS - {"source_url"}
-        updates = {key: optional_str(payload.get(key)) for key in allowed_fields if key in payload}
+        updates = {}
+        for key in allowed_fields:
+            if key not in payload:
+                continue
+            if key == "field_id":
+                updates[key] = parse_field_id(payload.get(key))
+            else:
+                updates[key] = optional_str(payload.get(key))
         if not updates:
             raise DocumentImportError(
                 "METADATA_INCOMPLETE",
@@ -933,6 +946,7 @@ class DocumentImportService:
             form_data.get("document_type"),
             merged_hints.get("document_type"),
         )
+        field_id = parse_field_id(form_data.get("field_id"))
 
         needs_review_fields = []
         if not document_number:
@@ -949,6 +963,7 @@ class DocumentImportService:
             ("issued_date", issued_date),
             ("effective_date", effective_date),
             ("validity_status", optional_str(form_data.get("validity_status"))),
+            ("field_id", field_id),
             ("signer_title", signer_title),
             ("signer_name", signer_name),
         ]:
@@ -977,6 +992,7 @@ class DocumentImportService:
             expiry_date=optional_str(form_data.get("expiry_date")),
             validity_status=optional_str(form_data.get("validity_status"))
             or VALIDITY_UNKNOWN,
+            field_id=field_id,
             signer_title=signer_title,
             signer_name=signer_name,
             document_type=document_type,
@@ -1115,10 +1131,10 @@ class DocumentImportService:
                         document_id, document_number, title, source_system,
                         source_url, issuing_body, signer_title, signer_name,
                         document_type, issued_date, effective_date, expiry_date,
-                        validity_status, raw_metadata_json, active_version,
+                        validity_status, field_id, raw_metadata_json, active_version,
                         is_published, is_deleted, created_at, updated_at
                     )
-                    VALUES (?, ?, ?, 'admin_upload', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, 0, 0, ?, ?)
+                    VALUES (?, ?, ?, 'admin_upload', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, 0, 0, ?, ?)
                     """,
                     (
                         document_id,
@@ -1133,6 +1149,7 @@ class DocumentImportService:
                         metadata.effective_date,
                         metadata.expiry_date,
                         metadata.validity_status,
+                        metadata.field_id,
                         json.dumps(metadata.__dict__, ensure_ascii=False),
                         now,
                         now,
@@ -1162,6 +1179,7 @@ class DocumentImportService:
                         signer_title = ?,
                         signer_name = ?,
                         document_type = ?,
+                        field_id = ?,
                         raw_metadata_json = ?,
                         updated_at = ?
                     WHERE document_id = ?
@@ -1177,6 +1195,7 @@ class DocumentImportService:
                         metadata.signer_title,
                         metadata.signer_name,
                         metadata.document_type,
+                        metadata.field_id,
                         json.dumps(metadata.__dict__, ensure_ascii=False),
                         now,
                         document_id,
@@ -1394,6 +1413,31 @@ def parse_json(raw_value: Any) -> dict[str, Any]:
     return parsed if isinstance(parsed, dict) else {}
 
 
+def parse_field_id(value: Any) -> int | None:
+    if value is None or value == "":
+        return None
+    if isinstance(value, bool):
+        raise DocumentImportError(
+            "FIELD_ID_INVALID",
+            "field_id must be a non-negative integer.",
+        )
+    if isinstance(value, int):
+        field_id = value
+    elif isinstance(value, str) and value.strip().isdigit():
+        field_id = int(value.strip())
+    else:
+        raise DocumentImportError(
+            "FIELD_ID_INVALID",
+            "field_id must be a non-negative integer.",
+        )
+    if field_id < 0:
+        raise DocumentImportError(
+            "FIELD_ID_INVALID",
+            "field_id must be a non-negative integer.",
+        )
+    return field_id
+
+
 def overlay_metadata(document: dict[str, Any], metadata: dict[str, Any]) -> None:
     for field in METADATA_UPDATE_FIELDS - {"source_url"}:
         if field in metadata:
@@ -1408,6 +1452,11 @@ def get_publish_blockers(metadata: dict[str, Any]) -> list[str]:
     ]
     if optional_str(metadata.get("validity_status")) == VALIDITY_UNKNOWN:
         blockers.append("validity_status")
+    try:
+        if parse_field_id(metadata.get("field_id")) is None:
+            blockers.append("field_id")
+    except DocumentImportError:
+        blockers.append("field_id")
     return sorted(set(blockers))
 
 
@@ -1430,6 +1479,7 @@ def normalize_chunks_for_version(
         updated["effective_date"] = metadata.get("effective_date") or updated.get("effective_date")
         updated["expiry_date"] = metadata.get("expiry_date") or updated.get("expiry_date")
         updated["validity_status"] = metadata.get("validity_status") or updated.get("validity_status")
+        updated["field_id"] = metadata.get("field_id")
         normalized.append(updated)
     return normalized
 
@@ -2170,6 +2220,7 @@ def build_normalized_metadata(
         "effective_date": metadata.effective_date,
         "expiry_date": metadata.expiry_date,
         "validity_status": metadata.validity_status,
+        "field_id": metadata.field_id,
         "document_type": metadata.document_type,
         "signer_title": metadata.signer_title,
         "signer_name": metadata.signer_name,
@@ -2478,6 +2529,7 @@ def build_chunk_record(
         "hierarchy_path": hierarchy_path,
         "chunk_level": chunk_level,
         "validity_status": metadata.get("validity_status", VALIDITY_UNKNOWN),
+        "field_id": metadata.get("field_id"),
         "effective_date": metadata.get("effective_date"),
         "expiry_date": metadata.get("expiry_date"),
         "is_published": False,

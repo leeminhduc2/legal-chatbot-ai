@@ -30,6 +30,7 @@ def init_db(db_path: str) -> None:
     with get_connection(db_path) as connection:
         _ensure_user_roles(connection)
         _ensure_import_batch_id(connection)
+        _ensure_document_field_id(connection)
         connection.executescript(schema)
         apply_migrations(connection)
         connection.commit()
@@ -44,6 +45,8 @@ def row_to_dict(row: sqlite3.Row | None) -> dict[str, Any] | None:
 def apply_migrations(connection: sqlite3.Connection) -> None:
     """Keep existing local SQLite files compatible with the current schema."""
     _ensure_user_roles(connection)
+    _ensure_user_field_permissions(connection)
+    _ensure_document_field_id(connection)
     _ensure_import_batch_id(connection)
     _ensure_document_relations(connection)
     _ensure_chat_history(connection)
@@ -140,6 +143,46 @@ def _delete_users_by_role(
     connection.execute(
         f"DELETE FROM users WHERE id IN ({id_placeholders})",
         user_ids,
+    )
+
+
+def _ensure_user_field_permissions(connection: sqlite3.Connection) -> None:
+    connection.executescript(
+        """
+        CREATE TABLE IF NOT EXISTS user_field_permissions (
+            user_id TEXT NOT NULL,
+            field_id INTEGER NOT NULL CHECK (field_id >= 0),
+            created_at TEXT NOT NULL,
+            PRIMARY KEY (user_id, field_id),
+            FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+        );
+
+        CREATE INDEX IF NOT EXISTS idx_user_field_permissions_user_id
+        ON user_field_permissions(user_id);
+        """
+    )
+
+
+def _ensure_document_field_id(connection: sqlite3.Connection) -> None:
+    columns = _get_columns(connection, "document_registry")
+    if not columns:
+        return
+    if "field_id" not in columns:
+        connection.execute(
+            "ALTER TABLE document_registry ADD COLUMN field_id INTEGER CHECK (field_id IS NULL OR field_id >= 0)"
+        )
+    connection.execute(
+        """
+        UPDATE document_registry
+        SET field_id = 0
+        WHERE field_id IS NULL
+        """
+    )
+    connection.execute(
+        """
+        CREATE INDEX IF NOT EXISTS idx_document_registry_field_id
+        ON document_registry(field_id)
+        """
     )
 
 

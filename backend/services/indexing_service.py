@@ -86,6 +86,7 @@ class ChunkRecord:
     document_type: str | None = None
     source_url: str | None = None
     validity_status: str = VALIDITY_UNKNOWN
+    field_id: int | None = None
     effective_date: str | None = None
     expiry_date: str | None = None
     article_title: str | None = None
@@ -118,6 +119,7 @@ class ChunkRecord:
             source_url=optional_str(raw_chunk.get("source_url")),
             validity_status=optional_str(raw_chunk.get("validity_status"))
             or VALIDITY_UNKNOWN,
+            field_id=parse_field_id_for_index(raw_chunk.get("field_id")),
             effective_date=optional_str(raw_chunk.get("effective_date")),
             expiry_date=optional_str(raw_chunk.get("expiry_date")),
             article_title=optional_str(raw_chunk.get("article_title")),
@@ -150,6 +152,7 @@ class ChunkRecord:
                 "clause_number": self.clause_number,
                 "citation_label": self.citation_label,
                 "validity_status": self.validity_status,
+                "field_id": self.field_id,
                 "is_published": 1 if self.is_published else 0,
                 "published_version": self.published_version,
                 "chunk_level": self.chunk_level,
@@ -404,6 +407,7 @@ class Neo4jGraphWriter:
                     d.title = $document_title,
                     d.import_batch_id = $import_batch_id,
                     d.validity_status = $validity_status,
+                    d.field_id = $field_id,
                     d.is_published = true,
                     d.published_version = $published_version
                 """,
@@ -412,6 +416,7 @@ class Neo4jGraphWriter:
                 document_title=document.document_title,
                 import_batch_id=document.import_batch_id,
                 validity_status=document.validity_status,
+                field_id=document.field_id,
                 published_version=document.published_version,
             )
             article_numbers = sorted({chunk.article_number for chunk in chunks})
@@ -440,6 +445,7 @@ class Neo4jGraphWriter:
                         a.article_number = $article_number,
                         a.content = $content,
                         a.import_batch_id = $import_batch_id,
+                        a.field_id = $field_id,
                         a.is_published = true,
                         a.published_version = $published_version
                     MERGE (d)-[:HAS_ARTICLE]->(a)
@@ -449,6 +455,7 @@ class Neo4jGraphWriter:
                     article_number=article_number,
                     content=article_content,
                     import_batch_id=document.import_batch_id,
+                    field_id=document.field_id,
                     published_version=document.published_version,
                 )
             for chunk in chunks:
@@ -470,6 +477,7 @@ class Neo4jGraphWriter:
                         c.content = $content,
                         c.citation_label = $citation_label,
                         c.import_batch_id = $import_batch_id,
+                        c.field_id = $field_id,
                         c.is_published = true,
                         c.published_version = $published_version
                     MERGE (a)-[:HAS_CLAUSE]->(c)
@@ -483,6 +491,7 @@ class Neo4jGraphWriter:
                     content=chunk.content,
                     citation_label=chunk.citation_label,
                     import_batch_id=chunk.import_batch_id,
+                    field_id=chunk.field_id,
                     published_version=chunk.published_version,
                 )
             for relation in relations or []:
@@ -1194,6 +1203,7 @@ class DocumentIndexingService:
                     effective_date = ?,
                     expiry_date = ?,
                     validity_status = ?,
+                    field_id = ?,
                     raw_metadata_json = ?,
                     active_version = ?,
                     is_published = 1,
@@ -1211,6 +1221,7 @@ class DocumentIndexingService:
                     metadata_json.get("effective_date"),
                     metadata_json.get("expiry_date"),
                     metadata_json.get("validity_status"),
+                    parse_field_id_for_index(metadata_json.get("field_id")),
                     json.dumps(metadata_json, ensure_ascii=False),
                     version,
                     now,
@@ -1544,6 +1555,8 @@ def collect_publish_warnings(
         warnings.append(
             "validity_status is unknown; default active-only retrieval may exclude this document."
         )
+    if any(chunk.field_id is None for chunk in chunks):
+        warnings.append("field_id is missing; access-control filtering may exclude this document.")
     if not any(chunk.effective_date for chunk in chunks):
         warnings.append("effective_date is missing from chunk metadata.")
     metadata = parse_json(version.get("metadata_json"))
@@ -1661,6 +1674,22 @@ def sanitize_scalar_metadata(
     return sanitized
 
 
+def parse_field_id_for_index(value: Any) -> int | None:
+    if value is None or value == "":
+        return None
+    if isinstance(value, bool):
+        raise IndexingError("FIELD_ID_INVALID", "field_id must be a non-negative integer.")
+    if isinstance(value, int):
+        field_id = value
+    elif isinstance(value, str) and value.strip().isdigit():
+        field_id = int(value.strip())
+    else:
+        raise IndexingError("FIELD_ID_INVALID", "field_id must be a non-negative integer.")
+    if field_id < 0:
+        raise IndexingError("FIELD_ID_INVALID", "field_id must be a non-negative integer.")
+    return field_id
+
+
 def hash_embedding(document: str, dimensions: int = 384) -> list[float]:
     vector = [0.0] * dimensions
     tokens = document.lower().split()
@@ -1711,6 +1740,7 @@ def elasticsearch_index_mapping() -> dict[str, Any]:
                 "hierarchy_path": {"type": "keyword"},
                 "chunk_level": {"type": "keyword"},
                 "validity_status": {"type": "keyword"},
+                "field_id": {"type": "integer"},
                 "effective_date": {"type": "date", "ignore_malformed": True},
                 "expiry_date": {"type": "date", "ignore_malformed": True},
                 "is_published": {"type": "boolean"},

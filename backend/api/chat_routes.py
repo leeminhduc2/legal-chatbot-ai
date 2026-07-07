@@ -10,10 +10,11 @@ from flask import Blueprint, current_app, g, jsonify, request
 from backend.api.decorators import error_response, extract_bearer_token, require_auth
 from backend.models.database import get_connection, row_to_dict
 from backend.services.auth_service import AuthService
-from backend.services.chat_agent_service import ChatAgentService
+from backend.services.chat_agent_service import AccessScope, ChatAgentService, access_scope_for_user
 
 
 chat_bp = Blueprint("chat", __name__, url_prefix="/api/v1/chat")
+WARNING_ACCESS_REDACTED = "ACCESS_REDACTED"
 
 
 @chat_bp.post("")
@@ -29,6 +30,7 @@ def chat():
     history_service = _get_chat_history_service()
     conversation: dict[str, Any] | None = None
     conversation_context: dict[str, Any] = {}
+    access_scope = access_scope_for_user(user)
 
     if user is not None:
         try:
@@ -44,6 +46,7 @@ def chat():
             conversation_id=conversation["id"],
             recent_limit=app_config.chat_memory_recent_messages,
             summary_enabled=app_config.chat_memory_summary_enabled,
+            access_scope=access_scope,
         )
 
     answer_payload = _get_chat_agent_service().answer(
@@ -111,6 +114,7 @@ def get_conversation(conversation_id: str):
     conversation = _get_chat_history_service().get_conversation(
         user_id=g.current_user["id"],
         conversation_id=conversation_id,
+        access_scope=access_scope_for_user(g.current_user),
     )
     if conversation is None:
         return error_response("CONVERSATION_NOT_FOUND", "Conversation not found.", 404)
@@ -229,6 +233,7 @@ class ChatHistoryService:
         self,
         user_id: str,
         conversation_id: str,
+        access_scope: AccessScope | None = None,
     ) -> dict[str, Any] | None:
         with get_connection(self.db_path) as connection:
             conversation_row = connection.execute(
@@ -253,10 +258,16 @@ class ChatHistoryService:
                 """,
                 (conversation_id,),
             ).fetchall()
+            messages = [format_message(row_to_dict(row)) for row in message_rows]
+            if access_scope is not None and not access_scope.unrestricted:
+                messages = [
+                    redact_message_for_access(message, connection, access_scope)
+                    for message in messages
+                ]
 
         return {
             "conversation": dict(conversation_row),
-            "messages": [format_message(row_to_dict(row)) for row in message_rows],
+            "messages": messages,
         }
 
     def get_conversation_context(
@@ -265,17 +276,27 @@ class ChatHistoryService:
         conversation_id: str,
         recent_limit: int,
         summary_enabled: bool,
+        access_scope: AccessScope | None = None,
     ) -> dict[str, Any]:
-        conversation = self.get_conversation(user_id, conversation_id)
+        conversation = self.get_conversation(
+            user_id,
+            conversation_id,
+            access_scope=access_scope,
+        )
         if conversation is None:
             return {"summary": "", "recent_messages": [], "older_message_count": 0}
         messages = conversation.get("messages", [])
         limit = max(1, int(recent_limit or 5))
         recent_messages = messages[-limit:]
         older_messages = messages[:-limit]
+        has_redaction = any(
+            bool(item.get("metadata", {}).get("access_redacted"))
+            for item in messages
+            if isinstance(item, dict)
+        )
         summary = ""
         if summary_enabled:
-            summary = conversation["conversation"].get("summary") or ""
+            summary = "" if has_redaction else conversation["conversation"].get("summary") or ""
             if older_messages and not summary:
                 summary = build_conversation_summary(older_messages)
         return {
@@ -373,6 +394,109 @@ def format_message(message: dict[str, Any] | None) -> dict[str, Any]:
         "metadata": metadata,
         "created_at": message["created_at"],
     }
+
+
+def redact_message_for_access(
+    message: dict[str, Any],
+    connection: Any,
+    access_scope: AccessScope,
+) -> dict[str, Any]:
+    if access_scope.unrestricted or message.get("role") != "assistant":
+        return message
+    citations = message.get("citations") or []
+    if not citations:
+        return message
+    if all(citation_allowed_for_scope(citation, connection, access_scope) for citation in citations):
+        return message
+
+    metadata = dict(message.get("metadata") or {})
+    warnings = append_access_warning(message.get("warnings") or metadata.get("warnings") or [])
+    metadata["warnings"] = warnings
+    metadata["access_redacted"] = True
+    return {
+        **message,
+        "content": "This assistant message is hidden because your document field access changed.",
+        "citations": [],
+        "confidence": None,
+        "warnings": warnings,
+        "agent_steps": [],
+        "tool_trace": [],
+        "agent_timeline": [],
+        "metadata": metadata,
+    }
+
+
+def citation_allowed_for_scope(
+    citation: Any,
+    connection: Any,
+    access_scope: AccessScope,
+) -> bool:
+    if not isinstance(citation, dict):
+        return False
+    field_id = parse_citation_field_id(citation.get("field_id"))
+    if field_id is None:
+        field_id = lookup_citation_field_id(citation, connection)
+    return field_id is not None and access_scope.allows(field_id)
+
+
+def lookup_citation_field_id(citation: dict[str, Any], connection: Any) -> int | None:
+    document_id = str(citation.get("document_id") or "").strip()
+    document_number = str(citation.get("document_number") or "").strip()
+    row = None
+    if document_id:
+        row = connection.execute(
+            """
+            SELECT field_id
+            FROM document_registry
+            WHERE document_id = ? AND is_deleted = 0
+            ORDER BY updated_at DESC
+            LIMIT 1
+            """,
+            (document_id,),
+        ).fetchone()
+    if row is None and document_number:
+        row = connection.execute(
+            """
+            SELECT field_id
+            FROM document_registry
+            WHERE document_number = ? AND is_deleted = 0
+            ORDER BY updated_at DESC
+            LIMIT 1
+            """,
+            (document_number,),
+        ).fetchone()
+    if row is None:
+        return None
+    raw_field_id = row["field_id"] if row["field_id"] is not None else 0
+    return parse_citation_field_id(raw_field_id)
+
+
+def parse_citation_field_id(value: Any) -> int | None:
+    if value is None or value == "":
+        return None
+    if isinstance(value, bool):
+        return None
+    if isinstance(value, int):
+        return value if value >= 0 else None
+    if isinstance(value, float):
+        return int(value) if value.is_integer() and value >= 0 else None
+    if isinstance(value, str):
+        text = value.strip()
+        if text.isdigit():
+            return int(text)
+    return None
+
+
+def append_access_warning(warnings: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    if any(item.get("code") == WARNING_ACCESS_REDACTED for item in warnings if isinstance(item, dict)):
+        return warnings
+    return [
+        *warnings,
+        {
+            "code": WARNING_ACCESS_REDACTED,
+            "message": "A previous assistant message was redacted because its citations are outside your current field access.",
+        },
+    ]
 
 
 def make_title(message: str) -> str:

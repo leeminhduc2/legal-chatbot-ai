@@ -116,6 +116,7 @@ Các field chính:
 - `clause_number`: số khoản.
 - `citation_label`: nhãn citation hiển thị.
 - `validity_status`: trạng thái hiệu lực.
+- `field_id`: lĩnh vực tài liệu; `0` là public.
 - `is_published`: chunk/văn bản có publish không.
 - `score`: điểm retrieval/rerank.
 - `source`: nguồn chính, ví dụ `vector`, `bm25`, hoặc `bm25+vector`.
@@ -143,6 +144,7 @@ Cách xử lý:
 - Hỗ trợ nhiều tên field cho title: `document_title`, `title`, `document_name`.
 - Lấy `content` từ tham số truyền vào hoặc từ payload.
 - Normalize `validity_status`.
+- Normalize `field_id`; index legacy thiếu field này được coi là `0`.
 - Ép `is_published` về bool.
 - Gắn `source` và khởi tạo `sources={source}`.
 - Nếu thiếu `citation_label`, tự dựng nhãn từ `document_number`, `article_number`, `clause_number`.
@@ -278,7 +280,7 @@ Cách xử lý:
 ```python
 where={"is_published": 1}
 include=["documents", "metadatas", "distances"]
-n_results=max(top_k * 2, top_k)
+n_results=max(top_k * 4, top_k)
 ```
 
 6. Lấy `ids`, `documents`, `metadatas`, `distances` bằng `first_list()`.
@@ -286,7 +288,7 @@ n_results=max(top_k * 2, top_k)
    - lấy metadata
    - đổi distance thành score: `1.0 / (1.0 + distance)`
    - tạo `RetrievalHit.from_payload(..., source="vector")`
-   - lọc bằng `hit_allowed()`
+   - lọc bằng `hit_allowed()` theo document/article, hiệu lực và access scope `field_id`
 8. Dừng khi đủ `top_k`.
 
 ## 8. BM25 retriever: `ElasticsearchBM25Retriever`
@@ -309,8 +311,9 @@ Cách xử lý:
 {"term": {"is_published": True}}
 ```
 
-4. Nếu có `document_number`, thêm filter document.
-5. Nếu có `article_number`, thêm filter article.
+4. Nếu user không unrestricted, thêm `terms` filter theo allowed `field_id`.
+5. Nếu có `document_number`, thêm filter document.
+6. Nếu có `article_number`, thêm filter article.
 6. Gọi `client.search()` với `multi_match` trên:
    - `content^3`
    - `document_title^2`
@@ -320,7 +323,7 @@ Cách xử lý:
 8. Với từng hit:
    - đọc `_source`
    - tạo `RetrievalHit.from_payload(..., source="bm25")`
-   - lọc bằng `hit_allowed()`
+   - lọc bằng `hit_allowed()` theo document/article, hiệu lực và access scope `field_id`
 9. Dừng khi đủ `top_k`.
 
 ### `_get_client()`

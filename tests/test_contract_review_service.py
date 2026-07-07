@@ -144,6 +144,28 @@ class ContractReviewApiTest(unittest.TestCase):
         self.assertEqual(fetched.status_code, 200, fetched.get_data(as_text=True))
         self.assertEqual(fetched.get_json()["result"], payload["result"])
 
+    def test_contract_review_does_not_cite_document_outside_field_scope(self) -> None:
+        self._insert_published_document("01/2026/QD-TEST", "active", field_id=2)
+        token = self._login("business", "password")
+
+        response = self.client.post(
+            "/api/v1/contracts/review",
+            headers=self._auth_headers(token),
+            data={"file": (make_contract_docx(), "contract.docx")},
+            content_type="multipart/form-data",
+        )
+
+        self.assertEqual(response.status_code, 202, response.get_data(as_text=True))
+        effectivity = next(
+            module
+            for module in response.get_json()["result"]["modules"]
+            if module["module_id"] == MODULE_EFFECTIVITY
+        )
+        self.assertEqual(effectivity["status"], "insufficient_data")
+        self.assertEqual(effectivity["citations"], [])
+        self.assertEqual(effectivity["findings"][0]["result"], "insufficient_data")
+        self.assertIn("accessible published metadata", effectivity["findings"][0]["reason"])
+
     def test_invalid_docx_is_rejected(self) -> None:
         token = self._login("business", "password")
 
@@ -202,7 +224,12 @@ class ContractReviewApiTest(unittest.TestCase):
         modules = response.get_json()["result"]["modules"]
         self.assertEqual([module["module_id"] for module in modules], [MODULE_AUTHORITY])
 
-    def _insert_published_document(self, document_number: str, validity_status: str) -> None:
+    def _insert_published_document(
+        self,
+        document_number: str,
+        validity_status: str,
+        field_id: int = 0,
+    ) -> None:
         with get_connection(self.db_path) as connection:
             connection.execute(
                 """
@@ -210,17 +237,18 @@ class ContractReviewApiTest(unittest.TestCase):
                     document_id, document_number, title, source_system, source_url,
                     sector, domain, issuing_body, signer_title, signer_name,
                     document_type, issued_date, effective_date, expiry_date,
-                    validity_status, raw_metadata_json, active_version,
+                    validity_status, field_id, raw_metadata_json, active_version,
                     is_published, is_deleted, created_at, updated_at
                 )
                 VALUES (?, ?, ?, 'test', '', '', '', '', '', '', '', '', '', '',
-                        ?, '{}', 1, 1, 0, '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z')
+                        ?, ?, '{}', 1, 1, 0, '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z')
                 """,
                 (
                     f"doc-{document_number}",
                     document_number,
                     f"Document {document_number}",
                     validity_status,
+                    field_id,
                 ),
             )
             connection.commit()

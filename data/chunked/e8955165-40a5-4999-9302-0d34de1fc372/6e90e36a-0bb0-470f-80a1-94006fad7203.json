@@ -15,12 +15,14 @@
     "citation_label": "111/2025/QH15, Điều 1",
     "hierarchy_path": "Document/111/2025/QH15/Article/1",
     "chunk_level": "article",
-    "validity_status": "unknown",
+    "validity_status": "active",
     "effective_date": "2026-05-01",
     "expiry_date": null,
     "is_published": false,
     "published_version": 1,
-    "ordinal": 1
+    "ordinal": 1,
+    "issuing_body": "QUỐC HỘI",
+    "issued_date": "2025-12-10"
   },
   {
     "chunk_id": "43b4c8a9-d37e-577f-96e5-3fc47b538ebd",
@@ -38,12 +40,14 @@
     "citation_label": "111/2025/QH15, Điều 2",
     "hierarchy_path": "Document/111/2025/QH15/Article/2",
     "chunk_level": "article",
-    "validity_status": "unknown",
+    "validity_status": "active",
     "effective_date": "2026-05-01",
     "expiry_date": null,
     "is_published": false,
     "published_version": 1,
-    "ordinal": 2
+    "ordinal": 2,
+    "issuing_body": "QUỐC HỘI",
+    "issued_date": "2025-12-10"
   },
   {
     "chunk_id": "acf645c4-65d4-5075-8e2f-95ff5f5bb3a0",
@@ -61,12 +65,14 @@
     "citation_label": "111/2025/QH15, Điều 3",
     "hierarchy_path": "Document/111/2025/QH15/Article/3",
     "chunk_level": "article",
-    "validity_status": "unknown",
+    "validity_status": "active",
     "effective_date": "2026-05-01",
     "expiry_date": null,
     "is_published": false,
     "published_version": 1,
-    "ordinal": 3
+    "ordinal": 3,
+    "issuing_body": "QUỐC HỘI",
+    "issued_date": "2025-12-10"
   },
   {
     "chunk_id": "b7b8a4ec-0503-56d6-9b59-91f8aae8b797",
@@ -84,12 +90,14 @@
     "citation_label": "111/2025/QH15, Điều 4, khoản 1",
     "hierarchy_path": "Document/111/2025/QH15/Article/4/Clause/1",
     "chunk_level": "clause",
-    "validity_status": "unknown",
+    "validity_status": "active",
     "effective_date": "2026-05-01",
     "expiry_date": null,
     "is_published": false,
     "published_version": 1,
-    "ordinal": 4
+    "ordinal": 4,
+    "issuing_body": "QUỐC HỘI",
+    "issued_date": "2025-12-10"
   },
   {
     "chunk_id": "f53234ed-0f38-57eb-bea1-0842879bdc1f",
@@ -107,12 +115,14 @@
     "citation_label": "111/2025/QH15, Điều 4, khoản 2",
     "hierarchy_path": "Document/111/2025/QH15/Article/4/Clause/2",
     "chunk_level": "clause",
-    "validity_status": "unknown",
+    "validity_status": "active",
     "effective_date": "2026-05-01",
     "expiry_date": null,
     "is_published": false,
     "published_version": 1,
-    "ordinal": 5
+    "ordinal": 5,
+    "issuing_body": "QUỐC HỘI",
+    "issued_date": "2025-12-10"
   },
   {
     "chunk_id": "2369106a-4522-5e14-97f3-16326e6bf4a9",
@@ -130,12 +140,14 @@
     "citation_label": "111/2025/QH15, Điều 4, khoản 3",
     "hierarchy_path": "Document/111/2025/QH15/Article/4/Clause/3",
     "chunk_level": "clause",
-    "validity_status": "unknown",
+    "validity_status": "active",
     "effective_date": "2026-05-01",
     "expiry_date": null,
     "is_published": false,
     "published_version": 1,
-    "ordinal": 6
+    "ordinal": 6,
+    "issuing_body": "QUỐC HỘI",
+    "issued_date": "2025-12-10"
   },
   {
     "chunk_id": "2ceae993-cd25-58d7-b076-95a1c3ebcf44",
@@ -153,12 +165,14 @@
     "citation_label": "111/2025/QH15, Điều 4, khoản 4",
     "hierarchy_path": "Document/111/2025/QH15/Article/4/Clause/4",
     "chunk_level": "clause",
-    "validity_status": "unknown",
+    "validity_status": "active",
     "effective_date": "2026-05-01",
     "expiry_date": null,
     "is_published": false,
     "published_version": 1,
-    "ordinal": 7
+    "ordinal": 7,
+    "issuing_body": "QUỐC HỘI",
+    "issued_date": "2025-12-10"
   },
   {
     "chunk_id": "2d9cf1a6-5c51-503d-b167-9cc9a631dba4",
@@ -176,12 +190,14 @@
     "citation_label": "111/2025/QH15, Điều 4, khoản 5",
     "hierarchy_path": "Document/111/2025/QH15/Article/4/Clause/5",
     "chunk_level": "clause",
-    "validity_status": "unknown",
+    "validity_status": "active",
     "effective_date": "2026-05-01",
     "expiry_date": null,
     "is_published": false,
     "published_version": 1,
-    "ordinal": 8
+    "ordinal": 8,
+    "issuing_body": "QUỐC HỘI",
+    "issued_date": "2025-12-10"
   },
   {
     "chunk_id": "70e64fbc-994a-5e00-86a6-86a66af33f1e",
@@ -199,12 +215,14 @@
     "citation_label": "111/2025/QH15, Điều 4, khoản 6",
     "hierarchy_path": "Document/111/2025/QH15/Article/4/Clause/6",
     "chunk_level": "clause",
-    "validity_status": "unknown",
+    "validity_status": "active",
     "effective_date": "2026-05-01",
     "expiry_date": null,
     "is_published": false,
     "published_version": 1,
-    "ordinal": 9
+    "ordinal": 9,
+    "issuing_body": "QUỐC HỘI",
+    "issued_date": "2025-12-10"
   },
   {
     "chunk_id": "f3c0a7cb-98b5-5ad4-8817-8a2ec069e108",
@@ -222,12 +240,14 @@
     "citation_label": "111/2025/QH15, Điều 5, khoản 1",
     "hierarchy_path": "Document/111/2025/QH15/Article/5/Clause/1",
     "chunk_level": "clause",
-    "validity_status": "unknown",
+    "validity_status": "active",
     "effective_date": "2026-05-01",
     "expiry_date": null,
     "is_published": false,
     "published_version": 1,
-    "ordinal": 10
+    "ordinal": 10,
+    "issuing_body": "QUỐC HỘI",
+    "issued_date": "2025-12-10"
   },
   {
     "chunk_id": "365baac3-4c35-52fa-80f6-60fea3c3858d",
@@ -245,12 +265,14 @@
     "citation_label": "111/2025/QH15, Điều 5, khoản 2",
     "hierarchy_path": "Document/111/2025/QH15/Article/5/Clause/2",
     "chunk_level": "clause",
-    "validity_status": "unknown",
+    "validity_status": "active",
     "effective_date": "2026-05-01",
     "expiry_date": null,
     "is_published": false,
     "published_version": 1,
-    "ordinal": 11
+    "ordinal": 11,
+    "issuing_body": "QUỐC HỘI",
+    "issued_date": "2025-12-10"
   },
   {
     "chunk_id": "f54fee4c-b303-5721-a021-6cdefd912fd8",
@@ -268,12 +290,14 @@
     "citation_label": "111/2025/QH15, Điều 6",
     "hierarchy_path": "Document/111/2025/QH15/Article/6",
     "chunk_level": "article",
-    "validity_status": "unknown",
+    "validity_status": "active",
     "effective_date": "2026-05-01",
     "expiry_date": null,
     "is_published": false,
     "published_version": 1,
-    "ordinal": 12
+    "ordinal": 12,
+    "issuing_body": "QUỐC HỘI",
+    "issued_date": "2025-12-10"
   },
   {
     "chunk_id": "448f86e4-8990-5739-b368-9f2669acdee9",
@@ -291,12 +315,14 @@
     "citation_label": "111/2025/QH15, Điều 7, khoản 1",
     "hierarchy_path": "Document/111/2025/QH15/Article/7/Clause/1",
     "chunk_level": "clause",
-    "validity_status": "unknown",
+    "validity_status": "active",
     "effective_date": "2026-05-01",
     "expiry_date": null,
     "is_published": false,
     "published_version": 1,
-    "ordinal": 13
+    "ordinal": 13,
+    "issuing_body": "QUỐC HỘI",
+    "issued_date": "2025-12-10"
   },
   {
     "chunk_id": "5eff27c1-5775-51c6-99aa-8d4de0991e86",
@@ -314,12 +340,14 @@
     "citation_label": "111/2025/QH15, Điều 7, khoản 2",
     "hierarchy_path": "Document/111/2025/QH15/Article/7/Clause/2",
     "chunk_level": "clause",
-    "validity_status": "unknown",
+    "validity_status": "active",
     "effective_date": "2026-05-01",
     "expiry_date": null,
     "is_published": false,
     "published_version": 1,
-    "ordinal": 14
+    "ordinal": 14,
+    "issuing_body": "QUỐC HỘI",
+    "issued_date": "2025-12-10"
   },
   {
     "chunk_id": "bca02473-ff6e-5562-8271-3955e80319af",
@@ -337,12 +365,14 @@
     "citation_label": "111/2025/QH15, Điều 8, khoản 1",
     "hierarchy_path": "Document/111/2025/QH15/Article/8/Clause/1",
     "chunk_level": "clause",
-    "validity_status": "unknown",
+    "validity_status": "active",
     "effective_date": "2026-05-01",
     "expiry_date": null,
     "is_published": false,
     "published_version": 1,
-    "ordinal": 15
+    "ordinal": 15,
+    "issuing_body": "QUỐC HỘI",
+    "issued_date": "2025-12-10"
   },
   {
     "chunk_id": "4561ed0f-535c-5e78-ba0e-0691fd142584",
@@ -360,12 +390,14 @@
     "citation_label": "111/2025/QH15, Điều 8, khoản 2",
     "hierarchy_path": "Document/111/2025/QH15/Article/8/Clause/2",
     "chunk_level": "clause",
-    "validity_status": "unknown",
+    "validity_status": "active",
     "effective_date": "2026-05-01",
     "expiry_date": null,
     "is_published": false,
     "published_version": 1,
-    "ordinal": 16
+    "ordinal": 16,
+    "issuing_body": "QUỐC HỘI",
+    "issued_date": "2025-12-10"
   },
   {
     "chunk_id": "d0f2a0ff-fe4d-51a1-ab6c-f1324510c98f",
@@ -383,12 +415,14 @@
     "citation_label": "111/2025/QH15, Điều 8, khoản 3",
     "hierarchy_path": "Document/111/2025/QH15/Article/8/Clause/3",
     "chunk_level": "clause",
-    "validity_status": "unknown",
+    "validity_status": "active",
     "effective_date": "2026-05-01",
     "expiry_date": null,
     "is_published": false,
     "published_version": 1,
-    "ordinal": 17
+    "ordinal": 17,
+    "issuing_body": "QUỐC HỘI",
+    "issued_date": "2025-12-10"
   },
   {
     "chunk_id": "d7eba554-e9d5-5fc8-a1db-0d792587e68b",
@@ -406,12 +440,14 @@
     "citation_label": "111/2025/QH15, Điều 8, khoản 4",
     "hierarchy_path": "Document/111/2025/QH15/Article/8/Clause/4",
     "chunk_level": "clause",
-    "validity_status": "unknown",
+    "validity_status": "active",
     "effective_date": "2026-05-01",
     "expiry_date": null,
     "is_published": false,
     "published_version": 1,
-    "ordinal": 18
+    "ordinal": 18,
+    "issuing_body": "QUỐC HỘI",
+    "issued_date": "2025-12-10"
   },
   {
     "chunk_id": "b782898c-dd64-520c-b80d-80b8ee1623c8",
@@ -429,12 +465,14 @@
     "citation_label": "111/2025/QH15, Điều 9, khoản 1",
     "hierarchy_path": "Document/111/2025/QH15/Article/9/Clause/1",
     "chunk_level": "clause",
-    "validity_status": "unknown",
+    "validity_status": "active",
     "effective_date": "2026-05-01",
     "expiry_date": null,
     "is_published": false,
     "published_version": 1,
-    "ordinal": 19
+    "ordinal": 19,
+    "issuing_body": "QUỐC HỘI",
+    "issued_date": "2025-12-10"
   },
   {
     "chunk_id": "a0f5d2a8-9106-518d-a0c3-d24de3a55fdc",
@@ -452,12 +490,14 @@
     "citation_label": "111/2025/QH15, Điều 9, khoản 2",
     "hierarchy_path": "Document/111/2025/QH15/Article/9/Clause/2",
     "chunk_level": "clause",
-    "validity_status": "unknown",
+    "validity_status": "active",
     "effective_date": "2026-05-01",
     "expiry_date": null,
     "is_published": false,
     "published_version": 1,
-    "ordinal": 20
+    "ordinal": 20,
+    "issuing_body": "QUỐC HỘI",
+    "issued_date": "2025-12-10"
   },
   {
     "chunk_id": "45ccada1-e0f8-5a5b-b347-b19999e03696",
@@ -475,12 +515,14 @@
     "citation_label": "111/2025/QH15, Điều 9, khoản 3",
     "hierarchy_path": "Document/111/2025/QH15/Article/9/Clause/3",
     "chunk_level": "clause",
-    "validity_status": "unknown",
+    "validity_status": "active",
     "effective_date": "2026-05-01",
     "expiry_date": null,
     "is_published": false,
     "published_version": 1,
-    "ordinal": 21
+    "ordinal": 21,
+    "issuing_body": "QUỐC HỘI",
+    "issued_date": "2025-12-10"
   },
   {
     "chunk_id": "f724269c-6dbf-5fa2-b812-b8bbb4d84b56",
@@ -498,12 +540,14 @@
     "citation_label": "111/2025/QH15, Điều 10",
     "hierarchy_path": "Document/111/2025/QH15/Article/10",
     "chunk_level": "article",
-    "validity_status": "unknown",
+    "validity_status": "active",
     "effective_date": "2026-05-01",
     "expiry_date": null,
     "is_published": false,
     "published_version": 1,
-    "ordinal": 22
+    "ordinal": 22,
+    "issuing_body": "QUỐC HỘI",
+    "issued_date": "2025-12-10"
   },
   {
     "chunk_id": "7d956154-db89-5128-8eb3-12549d3b66df",
@@ -521,12 +565,14 @@
     "citation_label": "111/2025/QH15, Điều 11, khoản 1",
     "hierarchy_path": "Document/111/2025/QH15/Article/11/Clause/1",
     "chunk_level": "clause",
-    "validity_status": "unknown",
+    "validity_status": "active",
     "effective_date": "2026-05-01",
     "expiry_date": null,
     "is_published": false,
     "published_version": 1,
-    "ordinal": 23
+    "ordinal": 23,
+    "issuing_body": "QUỐC HỘI",
+    "issued_date": "2025-12-10"
   },
   {
     "chunk_id": "110a903b-0702-577f-8aa1-9354d690c901",
@@ -544,12 +590,14 @@
     "citation_label": "111/2025/QH15, Điều 11, khoản 2",
     "hierarchy_path": "Document/111/2025/QH15/Article/11/Clause/2",
     "chunk_level": "clause",
-    "validity_status": "unknown",
+    "validity_status": "active",
     "effective_date": "2026-05-01",
     "expiry_date": null,
     "is_published": false,
     "published_version": 1,
-    "ordinal": 24
+    "ordinal": 24,
+    "issuing_body": "QUỐC HỘI",
+    "issued_date": "2025-12-10"
   },
   {
     "chunk_id": "8801416e-b1bb-5a26-990c-bf4edf015d46",
@@ -567,12 +615,14 @@
     "citation_label": "111/2025/QH15, Điều 11, khoản 3",
     "hierarchy_path": "Document/111/2025/QH15/Article/11/Clause/3",
     "chunk_level": "clause",
-    "validity_status": "unknown",
+    "validity_status": "active",
     "effective_date": "2026-05-01",
     "expiry_date": null,
     "is_published": false,
     "published_version": 1,
-    "ordinal": 25
+    "ordinal": 25,
+    "issuing_body": "QUỐC HỘI",
+    "issued_date": "2025-12-10"
   },
   {
     "chunk_id": "fa28c2c1-6a34-597c-a167-8a18ed393290",
@@ -590,12 +640,14 @@
     "citation_label": "111/2025/QH15, Điều 11, khoản 4",
     "hierarchy_path": "Document/111/2025/QH15/Article/11/Clause/4",
     "chunk_level": "clause",
-    "validity_status": "unknown",
+    "validity_status": "active",
     "effective_date": "2026-05-01",
     "expiry_date": null,
     "is_published": false,
     "published_version": 1,
-    "ordinal": 26
+    "ordinal": 26,
+    "issuing_body": "QUỐC HỘI",
+    "issued_date": "2025-12-10"
   },
   {
     "chunk_id": "2b8407ed-5ed8-5aef-a83f-080893f575e2",
@@ -613,12 +665,14 @@
     "citation_label": "111/2025/QH15, Điều 11, khoản 5",
     "hierarchy_path": "Document/111/2025/QH15/Article/11/Clause/5",
     "chunk_level": "clause",
-    "validity_status": "unknown",
+    "validity_status": "active",
     "effective_date": "2026-05-01",
     "expiry_date": null,
     "is_published": false,
     "published_version": 1,
-    "ordinal": 27
+    "ordinal": 27,
+    "issuing_body": "QUỐC HỘI",
+    "issued_date": "2025-12-10"
   },
   {
     "chunk_id": "7c8aa8cc-24f5-554a-a904-748bac67bedc",
@@ -636,12 +690,14 @@
     "citation_label": "111/2025/QH15, Điều 12, khoản 1",
     "hierarchy_path": "Document/111/2025/QH15/Article/12/Clause/1",
     "chunk_level": "clause",
-    "validity_status": "unknown",
+    "validity_status": "active",
     "effective_date": "2026-05-01",
     "expiry_date": null,
     "is_published": false,
     "published_version": 1,
-    "ordinal": 28
+    "ordinal": 28,
+    "issuing_body": "QUỐC HỘI",
+    "issued_date": "2025-12-10"
   },
   {
     "chunk_id": "c51eed16-8e3f-557e-88b0-612c1387a700",
@@ -659,12 +715,14 @@
     "citation_label": "111/2025/QH15, Điều 12, khoản 2",
     "hierarchy_path": "Document/111/2025/QH15/Article/12/Clause/2",
     "chunk_level": "clause",
-    "validity_status": "unknown",
+    "validity_status": "active",
     "effective_date": "2026-05-01",
     "expiry_date": null,
     "is_published": false,
     "published_version": 1,
-    "ordinal": 29
+    "ordinal": 29,
+    "issuing_body": "QUỐC HỘI",
+    "issued_date": "2025-12-10"
   },
   {
     "chunk_id": "fbb086de-82d2-583e-b8a2-8dac21f2ef45",
@@ -682,12 +740,14 @@
     "citation_label": "111/2025/QH15, Điều 12, khoản 3",
     "hierarchy_path": "Document/111/2025/QH15/Article/12/Clause/3",
     "chunk_level": "clause",
-    "validity_status": "unknown",
+    "validity_status": "active",
     "effective_date": "2026-05-01",
     "expiry_date": null,
     "is_published": false,
     "published_version": 1,
-    "ordinal": 30
+    "ordinal": 30,
+    "issuing_body": "QUỐC HỘI",
+    "issued_date": "2025-12-10"
   },
   {
     "chunk_id": "9df18577-e6cb-53a4-9bed-ea06e562d03c",
@@ -705,12 +765,14 @@
     "citation_label": "111/2025/QH15, Điều 12, khoản 4",
     "hierarchy_path": "Document/111/2025/QH15/Article/12/Clause/4",
     "chunk_level": "clause",
-    "validity_status": "unknown",
+    "validity_status": "active",
     "effective_date": "2026-05-01",
     "expiry_date": null,
     "is_published": false,
     "published_version": 1,
-    "ordinal": 31
+    "ordinal": 31,
+    "issuing_body": "QUỐC HỘI",
+    "issued_date": "2025-12-10"
   },
   {
     "chunk_id": "50c3a0ea-737b-5b87-b230-d060761bd531",
@@ -728,12 +790,14 @@
     "citation_label": "111/2025/QH15, Điều 12, khoản 5",
     "hierarchy_path": "Document/111/2025/QH15/Article/12/Clause/5",
     "chunk_level": "clause",
-    "validity_status": "unknown",
+    "validity_status": "active",
     "effective_date": "2026-05-01",
     "expiry_date": null,
     "is_published": false,
     "published_version": 1,
-    "ordinal": 32
+    "ordinal": 32,
+    "issuing_body": "QUỐC HỘI",
+    "issued_date": "2025-12-10"
   },
   {
     "chunk_id": "1448af42-e642-5b44-b4a4-b5affd8d51b4",
@@ -751,12 +815,14 @@
     "citation_label": "111/2025/QH15, Điều 13, khoản 1",
     "hierarchy_path": "Document/111/2025/QH15/Article/13/Clause/1",
     "chunk_level": "clause",
-    "validity_status": "unknown",
+    "validity_status": "active",
     "effective_date": "2026-05-01",
     "expiry_date": null,
     "is_published": false,
     "published_version": 1,
-    "ordinal": 33
+    "ordinal": 33,
+    "issuing_body": "QUỐC HỘI",
+    "issued_date": "2025-12-10"
   },
   {
     "chunk_id": "903ddc34-a5f3-5c7c-9771-0ecb0168bd88",
@@ -774,12 +840,14 @@
     "citation_label": "111/2025/QH15, Điều 13, khoản 2",
     "hierarchy_path": "Document/111/2025/QH15/Article/13/Clause/2",
     "chunk_level": "clause",
-    "validity_status": "unknown",
+    "validity_status": "active",
     "effective_date": "2026-05-01",
     "expiry_date": null,
     "is_published": false,
     "published_version": 1,
-    "ordinal": 34
+    "ordinal": 34,
+    "issuing_body": "QUỐC HỘI",
+    "issued_date": "2025-12-10"
   },
   {
     "chunk_id": "33ccf960-3867-5ab1-9605-2b20b98dfed0",
@@ -797,12 +865,14 @@
     "citation_label": "111/2025/QH15, Điều 13, khoản 3",
     "hierarchy_path": "Document/111/2025/QH15/Article/13/Clause/3",
     "chunk_level": "clause",
-    "validity_status": "unknown",
+    "validity_status": "active",
     "effective_date": "2026-05-01",
     "expiry_date": null,
     "is_published": false,
     "published_version": 1,
-    "ordinal": 35
+    "ordinal": 35,
+    "issuing_body": "QUỐC HỘI",
+    "issued_date": "2025-12-10"
   },
   {
     "chunk_id": "ce433255-e41f-5b7e-8412-099a362f8975",
@@ -820,12 +890,14 @@
     "citation_label": "111/2025/QH15, Điều 13, khoản 4",
     "hierarchy_path": "Document/111/2025/QH15/Article/13/Clause/4",
     "chunk_level": "clause",
-    "validity_status": "unknown",
+    "validity_status": "active",
     "effective_date": "2026-05-01",
     "expiry_date": null,
     "is_published": false,
     "published_version": 1,
-    "ordinal": 36
+    "ordinal": 36,
+    "issuing_body": "QUỐC HỘI",
+    "issued_date": "2025-12-10"
   },
   {
     "chunk_id": "3429e326-8193-53b9-8340-492c56a991bd",
@@ -843,12 +915,14 @@
     "citation_label": "111/2025/QH15, Điều 13, khoản 5",
     "hierarchy_path": "Document/111/2025/QH15/Article/13/Clause/5",
     "chunk_level": "clause",
-    "validity_status": "unknown",
+    "validity_status": "active",
     "effective_date": "2026-05-01",
     "expiry_date": null,
     "is_published": false,
     "published_version": 1,
-    "ordinal": 37
+    "ordinal": 37,
+    "issuing_body": "QUỐC HỘI",
+    "issued_date": "2025-12-10"
   },
   {
     "chunk_id": "e2100594-3965-5f21-9192-f6aea7bb0506",
@@ -866,12 +940,14 @@
     "citation_label": "111/2025/QH15, Điều 13, khoản 6",
     "hierarchy_path": "Document/111/2025/QH15/Article/13/Clause/6",
     "chunk_level": "clause",
-    "validity_status": "unknown",
+    "validity_status": "active",
     "effective_date": "2026-05-01",
     "expiry_date": null,
     "is_published": false,
     "published_version": 1,
-    "ordinal": 38
+    "ordinal": 38,
+    "issuing_body": "QUỐC HỘI",
+    "issued_date": "2025-12-10"
   },
   {
     "chunk_id": "b2866d4d-a0fe-5c83-813d-b585c33d436c",
@@ -889,12 +965,14 @@
     "citation_label": "111/2025/QH15, Điều 13, khoản 7",
     "hierarchy_path": "Document/111/2025/QH15/Article/13/Clause/7",
     "chunk_level": "clause",
-    "validity_status": "unknown",
+    "validity_status": "active",
     "effective_date": "2026-05-01",
     "expiry_date": null,
     "is_published": false,
     "published_version": 1,
-    "ordinal": 39
+    "ordinal": 39,
+    "issuing_body": "QUỐC HỘI",
+    "issued_date": "2025-12-10"
   },
   {
     "chunk_id": "a7a968bf-fa2e-55ee-a25f-97cff3a9e63c",
@@ -912,12 +990,14 @@
     "citation_label": "111/2025/QH15, Điều 13, khoản 8",
     "hierarchy_path": "Document/111/2025/QH15/Article/13/Clause/8",
     "chunk_level": "clause",
-    "validity_status": "unknown",
+    "validity_status": "active",
     "effective_date": "2026-05-01",
     "expiry_date": null,
     "is_published": false,
     "published_version": 1,
-    "ordinal": 40
+    "ordinal": 40,
+    "issuing_body": "QUỐC HỘI",
+    "issued_date": "2025-12-10"
   },
   {
     "chunk_id": "e7b2634d-078d-52f8-979c-8b103b3e43d3",
@@ -935,12 +1015,14 @@
     "citation_label": "111/2025/QH15, Điều 14, khoản 1",
     "hierarchy_path": "Document/111/2025/QH15/Article/14/Clause/1",
     "chunk_level": "clause",
-    "validity_status": "unknown",
+    "validity_status": "active",
     "effective_date": "2026-05-01",
     "expiry_date": null,
     "is_published": false,
     "published_version": 1,
-    "ordinal": 41
+    "ordinal": 41,
+    "issuing_body": "QUỐC HỘI",
+    "issued_date": "2025-12-10"
   },
   {
     "chunk_id": "48cce4ea-42b0-5e92-9df7-f4b78c64b301",
@@ -958,12 +1040,14 @@
     "citation_label": "111/2025/QH15, Điều 14, khoản 2",
     "hierarchy_path": "Document/111/2025/QH15/Article/14/Clause/2",
     "chunk_level": "clause",
-    "validity_status": "unknown",
+    "validity_status": "active",
     "effective_date": "2026-05-01",
     "expiry_date": null,
     "is_published": false,
     "published_version": 1,
-    "ordinal": 42
+    "ordinal": 42,
+    "issuing_body": "QUỐC HỘI",
+    "issued_date": "2025-12-10"
   },
   {
     "chunk_id": "dc5e906e-f87a-51db-b728-41cb4ca986ff",
@@ -981,12 +1065,14 @@
     "citation_label": "111/2025/QH15, Điều 14, khoản 3",
     "hierarchy_path": "Document/111/2025/QH15/Article/14/Clause/3",
     "chunk_level": "clause",
-    "validity_status": "unknown",
+    "validity_status": "active",
     "effective_date": "2026-05-01",
     "expiry_date": null,
     "is_published": false,
     "published_version": 1,
-    "ordinal": 43
+    "ordinal": 43,
+    "issuing_body": "QUỐC HỘI",
+    "issued_date": "2025-12-10"
   },
   {
     "chunk_id": "0ec00d0f-355b-5c6a-bcac-67eccf628889",
@@ -1004,12 +1090,14 @@
     "citation_label": "111/2025/QH15, Điều 14, khoản 4",
     "hierarchy_path": "Document/111/2025/QH15/Article/14/Clause/4",
     "chunk_level": "clause",
-    "validity_status": "unknown",
+    "validity_status": "active",
     "effective_date": "2026-05-01",
     "expiry_date": null,
     "is_published": false,
     "published_version": 1,
-    "ordinal": 44
+    "ordinal": 44,
+    "issuing_body": "QUỐC HỘI",
+    "issued_date": "2025-12-10"
   },
   {
     "chunk_id": "2b4abe94-6374-5f08-8e98-8483f0e80eec",
@@ -1027,12 +1115,14 @@
     "citation_label": "111/2025/QH15, Điều 14, khoản 5",
     "hierarchy_path": "Document/111/2025/QH15/Article/14/Clause/5",
     "chunk_level": "clause",
-    "validity_status": "unknown",
+    "validity_status": "active",
     "effective_date": "2026-05-01",
     "expiry_date": null,
     "is_published": false,
     "published_version": 1,
-    "ordinal": 45
+    "ordinal": 45,
+    "issuing_body": "QUỐC HỘI",
+    "issued_date": "2025-12-10"
   },
   {
     "chunk_id": "7fdf955b-57dc-593f-a284-d3ff4d1d74f0",
@@ -1050,12 +1140,14 @@
     "citation_label": "111/2025/QH15, Điều 14, khoản 6",
     "hierarchy_path": "Document/111/2025/QH15/Article/14/Clause/6",
     "chunk_level": "clause",
-    "validity_status": "unknown",
+    "validity_status": "active",
     "effective_date": "2026-05-01",
     "expiry_date": null,
     "is_published": false,
     "published_version": 1,
-    "ordinal": 46
+    "ordinal": 46,
+    "issuing_body": "QUỐC HỘI",
+    "issued_date": "2025-12-10"
   },
   {
     "chunk_id": "a20b08e5-7e28-5545-ae19-6991f127bd01",
@@ -1073,12 +1165,14 @@
     "citation_label": "111/2025/QH15, Điều 14, khoản 7",
     "hierarchy_path": "Document/111/2025/QH15/Article/14/Clause/7",
     "chunk_level": "clause",
-    "validity_status": "unknown",
+    "validity_status": "active",
     "effective_date": "2026-05-01",
     "expiry_date": null,
     "is_published": false,
     "published_version": 1,
-    "ordinal": 47
+    "ordinal": 47,
+    "issuing_body": "QUỐC HỘI",
+    "issued_date": "2025-12-10"
   },
   {
     "chunk_id": "035f314c-b730-5041-8780-d326b91f699c",
@@ -1096,12 +1190,14 @@
     "citation_label": "111/2025/QH15, Điều 14, khoản 8",
     "hierarchy_path": "Document/111/2025/QH15/Article/14/Clause/8",
     "chunk_level": "clause",
-    "validity_status": "unknown",
+    "validity_status": "active",
     "effective_date": "2026-05-01",
     "expiry_date": null,
     "is_published": false,
     "published_version": 1,
-    "ordinal": 48
+    "ordinal": 48,
+    "issuing_body": "QUỐC HỘI",
+    "issued_date": "2025-12-10"
   },
   {
     "chunk_id": "7d99d6e2-e3ba-5cd1-82a8-4a26f399c50d",
@@ -1119,12 +1215,14 @@
     "citation_label": "111/2025/QH15, Điều 14, khoản 9",
     "hierarchy_path": "Document/111/2025/QH15/Article/14/Clause/9",
     "chunk_level": "clause",
-    "validity_status": "unknown",
+    "validity_status": "active",
     "effective_date": "2026-05-01",
     "expiry_date": null,
     "is_published": false,
     "published_version": 1,
-    "ordinal": 49
+    "ordinal": 49,
+    "issuing_body": "QUỐC HỘI",
+    "issued_date": "2025-12-10"
   },
   {
     "chunk_id": "8253d895-8098-5df3-b405-e64c0f414633",
@@ -1142,12 +1240,14 @@
     "citation_label": "111/2025/QH15, Điều 14, khoản 10",
     "hierarchy_path": "Document/111/2025/QH15/Article/14/Clause/10",
     "chunk_level": "clause",
-    "validity_status": "unknown",
+    "validity_status": "active",
     "effective_date": "2026-05-01",
     "expiry_date": null,
     "is_published": false,
     "published_version": 1,
-    "ordinal": 50
+    "ordinal": 50,
+    "issuing_body": "QUỐC HỘI",
+    "issued_date": "2025-12-10"
   },
   {
     "chunk_id": "afec3f63-bc71-50ce-a19d-60568b6dbc46",
@@ -1165,12 +1265,14 @@
     "citation_label": "111/2025/QH15, Điều 14, khoản 11",
     "hierarchy_path": "Document/111/2025/QH15/Article/14/Clause/11",
     "chunk_level": "clause",
-    "validity_status": "unknown",
+    "validity_status": "active",
     "effective_date": "2026-05-01",
     "expiry_date": null,
     "is_published": false,
     "published_version": 1,
-    "ordinal": 51
+    "ordinal": 51,
+    "issuing_body": "QUỐC HỘI",
+    "issued_date": "2025-12-10"
   },
   {
     "chunk_id": "dc42c4d1-0a9a-5180-8a06-10911a2b5aa6",
@@ -1188,12 +1290,14 @@
     "citation_label": "111/2025/QH15, Điều 14, khoản 12",
     "hierarchy_path": "Document/111/2025/QH15/Article/14/Clause/12",
     "chunk_level": "clause",
-    "validity_status": "unknown",
+    "validity_status": "active",
     "effective_date": "2026-05-01",
     "expiry_date": null,
     "is_published": false,
     "published_version": 1,
-    "ordinal": 52
+    "ordinal": 52,
+    "issuing_body": "QUỐC HỘI",
+    "issued_date": "2025-12-10"
   },
   {
     "chunk_id": "a073875c-06b3-58f8-8c72-ba8a78696ba4",
@@ -1211,12 +1315,14 @@
     "citation_label": "111/2025/QH15, Điều 14, khoản 13",
     "hierarchy_path": "Document/111/2025/QH15/Article/14/Clause/13",
     "chunk_level": "clause",
-    "validity_status": "unknown",
+    "validity_status": "active",
     "effective_date": "2026-05-01",
     "expiry_date": null,
     "is_published": false,
     "published_version": 1,
-    "ordinal": 53
+    "ordinal": 53,
+    "issuing_body": "QUỐC HỘI",
+    "issued_date": "2025-12-10"
   },
   {
     "chunk_id": "4862e200-873c-588f-8851-69a2332b355b",
@@ -1234,12 +1340,14 @@
     "citation_label": "111/2025/QH15, Điều 14, khoản 14",
     "hierarchy_path": "Document/111/2025/QH15/Article/14/Clause/14",
     "chunk_level": "clause",
-    "validity_status": "unknown",
+    "validity_status": "active",
     "effective_date": "2026-05-01",
     "expiry_date": null,
     "is_published": false,
     "published_version": 1,
-    "ordinal": 54
+    "ordinal": 54,
+    "issuing_body": "QUỐC HỘI",
+    "issued_date": "2025-12-10"
   },
   {
     "chunk_id": "1fd725f7-e737-5b97-81b5-8823d340d3c1",
@@ -1257,12 +1365,14 @@
     "citation_label": "111/2025/QH15, Điều 14, khoản 15",
     "hierarchy_path": "Document/111/2025/QH15/Article/14/Clause/15",
     "chunk_level": "clause",
-    "validity_status": "unknown",
+    "validity_status": "active",
     "effective_date": "2026-05-01",
     "expiry_date": null,
     "is_published": false,
     "published_version": 1,
-    "ordinal": 55
+    "ordinal": 55,
+    "issuing_body": "QUỐC HỘI",
+    "issued_date": "2025-12-10"
   },
   {
     "chunk_id": "b01c0f2e-521d-5e31-9b96-823efeb96868",
@@ -1280,12 +1390,14 @@
     "citation_label": "111/2025/QH15, Điều 14, khoản 16",
     "hierarchy_path": "Document/111/2025/QH15/Article/14/Clause/16",
     "chunk_level": "clause",
-    "validity_status": "unknown",
+    "validity_status": "active",
     "effective_date": "2026-05-01",
     "expiry_date": null,
     "is_published": false,
     "published_version": 1,
-    "ordinal": 56
+    "ordinal": 56,
+    "issuing_body": "QUỐC HỘI",
+    "issued_date": "2025-12-10"
   },
   {
     "chunk_id": "e8d9dbe4-1267-55e7-a48e-82f6ba3e8c16",
@@ -1303,12 +1415,14 @@
     "citation_label": "111/2025/QH15, Điều 15, khoản 1",
     "hierarchy_path": "Document/111/2025/QH15/Article/15/Clause/1",
     "chunk_level": "clause",
-    "validity_status": "unknown",
+    "validity_status": "active",
     "effective_date": "2026-05-01",
     "expiry_date": null,
     "is_published": false,
     "published_version": 1,
-    "ordinal": 57
+    "ordinal": 57,
+    "issuing_body": "QUỐC HỘI",
+    "issued_date": "2025-12-10"
   },
   {
     "chunk_id": "5aec43f9-c178-51e1-a2e5-6d40f1f07d0b",
@@ -1326,12 +1440,14 @@
     "citation_label": "111/2025/QH15, Điều 15, khoản 2",
     "hierarchy_path": "Document/111/2025/QH15/Article/15/Clause/2",
     "chunk_level": "clause",
-    "validity_status": "unknown",
+    "validity_status": "active",
     "effective_date": "2026-05-01",
     "expiry_date": null,
     "is_published": false,
     "published_version": 1,
-    "ordinal": 58
+    "ordinal": 58,
+    "issuing_body": "QUỐC HỘI",
+    "issued_date": "2025-12-10"
   },
   {
     "chunk_id": "48c5a131-3d11-5956-b587-965710fd0bcc",
@@ -1349,12 +1465,14 @@
     "citation_label": "111/2025/QH15, Điều 15, khoản 3",
     "hierarchy_path": "Document/111/2025/QH15/Article/15/Clause/3",
     "chunk_level": "clause",
-    "validity_status": "unknown",
+    "validity_status": "active",
     "effective_date": "2026-05-01",
     "expiry_date": null,
     "is_published": false,
     "published_version": 1,
-    "ordinal": 59
+    "ordinal": 59,
+    "issuing_body": "QUỐC HỘI",
+    "issued_date": "2025-12-10"
   },
   {
     "chunk_id": "b13ef2e9-3e95-5a04-af88-be071004ea65",
@@ -1372,12 +1490,14 @@
     "citation_label": "111/2025/QH15, Điều 15, khoản 4",
     "hierarchy_path": "Document/111/2025/QH15/Article/15/Clause/4",
     "chunk_level": "clause",
-    "validity_status": "unknown",
+    "validity_status": "active",
     "effective_date": "2026-05-01",
     "expiry_date": null,
     "is_published": false,
     "published_version": 1,
-    "ordinal": 60
+    "ordinal": 60,
+    "issuing_body": "QUỐC HỘI",
+    "issued_date": "2025-12-10"
   },
   {
     "chunk_id": "0659938f-5ba4-56f5-9fb2-64ed409dd78c",
@@ -1395,12 +1515,14 @@
     "citation_label": "111/2025/QH15, Điều 15, khoản 5",
     "hierarchy_path": "Document/111/2025/QH15/Article/15/Clause/5",
     "chunk_level": "clause",
-    "validity_status": "unknown",
+    "validity_status": "active",
     "effective_date": "2026-05-01",
     "expiry_date": null,
     "is_published": false,
     "published_version": 1,
-    "ordinal": 61
+    "ordinal": 61,
+    "issuing_body": "QUỐC HỘI",
+    "issued_date": "2025-12-10"
   },
   {
     "chunk_id": "29b41e91-1055-523b-a10f-8cabe2248961",
@@ -1418,12 +1540,14 @@
     "citation_label": "111/2025/QH15, Điều 16",
     "hierarchy_path": "Document/111/2025/QH15/Article/16",
     "chunk_level": "article",
-    "validity_status": "unknown",
+    "validity_status": "active",
     "effective_date": "2026-05-01",
     "expiry_date": null,
     "is_published": false,
     "published_version": 1,
-    "ordinal": 62
+    "ordinal": 62,
+    "issuing_body": "QUỐC HỘI",
+    "issued_date": "2025-12-10"
   },
   {
     "chunk_id": "f032b7de-8fcc-5a05-903b-8ca14b427d34",
@@ -1441,12 +1565,14 @@
     "citation_label": "111/2025/QH15, Điều 17",
     "hierarchy_path": "Document/111/2025/QH15/Article/17",
     "chunk_level": "article",
-    "validity_status": "unknown",
+    "validity_status": "active",
     "effective_date": "2026-05-01",
     "expiry_date": null,
     "is_published": false,
     "published_version": 1,
-    "ordinal": 63
+    "ordinal": 63,
+    "issuing_body": "QUỐC HỘI",
+    "issued_date": "2025-12-10"
   },
   {
     "chunk_id": "d744c116-d4ea-5ba4-ad43-bbd024832c61",
@@ -1464,12 +1590,14 @@
     "citation_label": "111/2025/QH15, Điều 18, khoản 1",
     "hierarchy_path": "Document/111/2025/QH15/Article/18/Clause/1",
     "chunk_level": "clause",
-    "validity_status": "unknown",
+    "validity_status": "active",
     "effective_date": "2026-05-01",
     "expiry_date": null,
     "is_published": false,
     "published_version": 1,
-    "ordinal": 64
+    "ordinal": 64,
+    "issuing_body": "QUỐC HỘI",
+    "issued_date": "2025-12-10"
   },
   {
     "chunk_id": "1531c103-eaa8-5477-9ada-d0176278205e",
@@ -1487,12 +1615,14 @@
     "citation_label": "111/2025/QH15, Điều 18, khoản 2",
     "hierarchy_path": "Document/111/2025/QH15/Article/18/Clause/2",
     "chunk_level": "clause",
-    "validity_status": "unknown",
+    "validity_status": "active",
     "effective_date": "2026-05-01",
     "expiry_date": null,
     "is_published": false,
     "published_version": 1,
-    "ordinal": 65
+    "ordinal": 65,
+    "issuing_body": "QUỐC HỘI",
+    "issued_date": "2025-12-10"
   },
   {
     "chunk_id": "0487630d-1219-57e7-b701-45171398d82c",
@@ -1510,12 +1640,14 @@
     "citation_label": "111/2025/QH15, Điều 18, khoản 3",
     "hierarchy_path": "Document/111/2025/QH15/Article/18/Clause/3",
     "chunk_level": "clause",
-    "validity_status": "unknown",
+    "validity_status": "active",
     "effective_date": "2026-05-01",
     "expiry_date": null,
     "is_published": false,
     "published_version": 1,
-    "ordinal": 66
+    "ordinal": 66,
+    "issuing_body": "QUỐC HỘI",
+    "issued_date": "2025-12-10"
   },
   {
     "chunk_id": "dad97d89-1fe6-5b4e-9c0a-ddf75d123bdd",
@@ -1533,12 +1665,14 @@
     "citation_label": "111/2025/QH15, Điều 18, khoản 4",
     "hierarchy_path": "Document/111/2025/QH15/Article/18/Clause/4",
     "chunk_level": "clause",
-    "validity_status": "unknown",
+    "validity_status": "active",
     "effective_date": "2026-05-01",
     "expiry_date": null,
     "is_published": false,
     "published_version": 1,
-    "ordinal": 67
+    "ordinal": 67,
+    "issuing_body": "QUỐC HỘI",
+    "issued_date": "2025-12-10"
   },
   {
     "chunk_id": "ca725c19-1121-5892-9a3d-1adf034eb71a",
@@ -1556,12 +1690,14 @@
     "citation_label": "111/2025/QH15, Điều 19, khoản 1",
     "hierarchy_path": "Document/111/2025/QH15/Article/19/Clause/1",
     "chunk_level": "clause",
-    "validity_status": "unknown",
+    "validity_status": "active",
     "effective_date": "2026-05-01",
     "expiry_date": null,
     "is_published": false,
     "published_version": 1,
-    "ordinal": 68
+    "ordinal": 68,
+    "issuing_body": "QUỐC HỘI",
+    "issued_date": "2025-12-10"
   },
   {
     "chunk_id": "8f30bf9e-f5a4-5d83-941e-59b55a337ab0",
@@ -1579,12 +1715,14 @@
     "citation_label": "111/2025/QH15, Điều 19, khoản 2",
     "hierarchy_path": "Document/111/2025/QH15/Article/19/Clause/2",
     "chunk_level": "clause",
-    "validity_status": "unknown",
+    "validity_status": "active",
     "effective_date": "2026-05-01",
     "expiry_date": null,
     "is_published": false,
     "published_version": 1,
-    "ordinal": 69
+    "ordinal": 69,
+    "issuing_body": "QUỐC HỘI",
+    "issued_date": "2025-12-10"
   },
   {
     "chunk_id": "7c27a56f-8cc4-509b-b656-2fa7b499e692",
@@ -1602,12 +1740,14 @@
     "citation_label": "111/2025/QH15, Điều 19, khoản 3",
     "hierarchy_path": "Document/111/2025/QH15/Article/19/Clause/3",
     "chunk_level": "clause",
-    "validity_status": "unknown",
+    "validity_status": "active",
     "effective_date": "2026-05-01",
     "expiry_date": null,
     "is_published": false,
     "published_version": 1,
-    "ordinal": 70
+    "ordinal": 70,
+    "issuing_body": "QUỐC HỘI",
+    "issued_date": "2025-12-10"
   },
   {
     "chunk_id": "ad0d0d79-0d80-53a9-8ac3-f143043f3da2",
@@ -1625,12 +1765,14 @@
     "citation_label": "111/2025/QH15, Điều 19, khoản 4",
     "hierarchy_path": "Document/111/2025/QH15/Article/19/Clause/4",
     "chunk_level": "clause",
-    "validity_status": "unknown",
+    "validity_status": "active",
     "effective_date": "2026-05-01",
     "expiry_date": null,
     "is_published": false,
     "published_version": 1,
-    "ordinal": 71
+    "ordinal": 71,
+    "issuing_body": "QUỐC HỘI",
+    "issued_date": "2025-12-10"
   },
   {
     "chunk_id": "787cfb12-c359-54fb-9a44-4380f5a8d921",
@@ -1648,12 +1790,14 @@
     "citation_label": "111/2025/QH15, Điều 19, khoản 5",
     "hierarchy_path": "Document/111/2025/QH15/Article/19/Clause/5",
     "chunk_level": "clause",
-    "validity_status": "unknown",
+    "validity_status": "active",
     "effective_date": "2026-05-01",
     "expiry_date": null,
     "is_published": false,
     "published_version": 1,
-    "ordinal": 72
+    "ordinal": 72,
+    "issuing_body": "QUỐC HỘI",
+    "issued_date": "2025-12-10"
   },
   {
     "chunk_id": "c247e8d2-e7c0-5409-99a6-277e679b6c19",
@@ -1671,12 +1815,14 @@
     "citation_label": "111/2025/QH15, Điều 19, khoản 6",
     "hierarchy_path": "Document/111/2025/QH15/Article/19/Clause/6",
     "chunk_level": "clause",
-    "validity_status": "unknown",
+    "validity_status": "active",
     "effective_date": "2026-05-01",
     "expiry_date": null,
     "is_published": false,
     "published_version": 1,
-    "ordinal": 73
+    "ordinal": 73,
+    "issuing_body": "QUỐC HỘI",
+    "issued_date": "2025-12-10"
   },
   {
     "chunk_id": "58882a2c-6b41-55dd-bfc5-77d836d760aa",
@@ -1694,12 +1840,14 @@
     "citation_label": "111/2025/QH15, Điều 19, khoản 7",
     "hierarchy_path": "Document/111/2025/QH15/Article/19/Clause/7",
     "chunk_level": "clause",
-    "validity_status": "unknown",
+    "validity_status": "active",
     "effective_date": "2026-05-01",
     "expiry_date": null,
     "is_published": false,
     "published_version": 1,
-    "ordinal": 74
+    "ordinal": 74,
+    "issuing_body": "QUỐC HỘI",
+    "issued_date": "2025-12-10"
   },
   {
     "chunk_id": "2c57a831-cf3f-50f6-96e4-16933862be8b",
@@ -1717,12 +1865,14 @@
     "citation_label": "111/2025/QH15, Điều 19, khoản 8",
     "hierarchy_path": "Document/111/2025/QH15/Article/19/Clause/8",
     "chunk_level": "clause",
-    "validity_status": "unknown",
+    "validity_status": "active",
     "effective_date": "2026-05-01",
     "expiry_date": null,
     "is_published": false,
     "published_version": 1,
-    "ordinal": 75
+    "ordinal": 75,
+    "issuing_body": "QUỐC HỘI",
+    "issued_date": "2025-12-10"
   },
   {
     "chunk_id": "ec839c5e-14a7-56ad-889d-2457cd34aca0",
@@ -1740,12 +1890,14 @@
     "citation_label": "111/2025/QH15, Điều 20, khoản 1",
     "hierarchy_path": "Document/111/2025/QH15/Article/20/Clause/1",
     "chunk_level": "clause",
-    "validity_status": "unknown",
+    "validity_status": "active",
     "effective_date": "2026-05-01",
     "expiry_date": null,
     "is_published": false,
     "published_version": 1,
-    "ordinal": 76
+    "ordinal": 76,
+    "issuing_body": "QUỐC HỘI",
+    "issued_date": "2025-12-10"
   },
   {
     "chunk_id": "7725e334-6e97-58d3-a93b-038f940298e2",
@@ -1763,12 +1915,14 @@
     "citation_label": "111/2025/QH15, Điều 20, khoản 2",
     "hierarchy_path": "Document/111/2025/QH15/Article/20/Clause/2",
     "chunk_level": "clause",
-    "validity_status": "unknown",
+    "validity_status": "active",
     "effective_date": "2026-05-01",
     "expiry_date": null,
     "is_published": false,
     "published_version": 1,
-    "ordinal": 77
+    "ordinal": 77,
+    "issuing_body": "QUỐC HỘI",
+    "issued_date": "2025-12-10"
   },
   {
     "chunk_id": "173d76b9-5d37-5608-a1be-262e65b13226",
@@ -1786,12 +1940,14 @@
     "citation_label": "111/2025/QH15, Điều 20, khoản 3",
     "hierarchy_path": "Document/111/2025/QH15/Article/20/Clause/3",
     "chunk_level": "clause",
-    "validity_status": "unknown",
+    "validity_status": "active",
     "effective_date": "2026-05-01",
     "expiry_date": null,
     "is_published": false,
     "published_version": 1,
-    "ordinal": 78
+    "ordinal": 78,
+    "issuing_body": "QUỐC HỘI",
+    "issued_date": "2025-12-10"
   },
   {
     "chunk_id": "fe7564a6-68b3-533d-8c8f-9800bf5a4f48",
@@ -1809,12 +1965,14 @@
     "citation_label": "111/2025/QH15, Điều 21, khoản 1",
     "hierarchy_path": "Document/111/2025/QH15/Article/21/Clause/1",
     "chunk_level": "clause",
-    "validity_status": "unknown",
+    "validity_status": "active",
     "effective_date": "2026-05-01",
     "expiry_date": null,
     "is_published": false,
     "published_version": 1,
-    "ordinal": 79
+    "ordinal": 79,
+    "issuing_body": "QUỐC HỘI",
+    "issued_date": "2025-12-10"
   },
   {
     "chunk_id": "2877c7b4-5ed7-52d6-ba78-69797a8d3e63",
@@ -1832,12 +1990,14 @@
     "citation_label": "111/2025/QH15, Điều 21, khoản 2",
     "hierarchy_path": "Document/111/2025/QH15/Article/21/Clause/2",
     "chunk_level": "clause",
-    "validity_status": "unknown",
+    "validity_status": "active",
     "effective_date": "2026-05-01",
     "expiry_date": null,
     "is_published": false,
     "published_version": 1,
-    "ordinal": 80
+    "ordinal": 80,
+    "issuing_body": "QUỐC HỘI",
+    "issued_date": "2025-12-10"
   },
   {
     "chunk_id": "b72062ca-1aea-57fa-8ed9-574844808550",
@@ -1855,12 +2015,14 @@
     "citation_label": "111/2025/QH15, Điều 21, khoản 3",
     "hierarchy_path": "Document/111/2025/QH15/Article/21/Clause/3",
     "chunk_level": "clause",
-    "validity_status": "unknown",
+    "validity_status": "active",
     "effective_date": "2026-05-01",
     "expiry_date": null,
     "is_published": false,
     "published_version": 1,
-    "ordinal": 81
+    "ordinal": 81,
+    "issuing_body": "QUỐC HỘI",
+    "issued_date": "2025-12-10"
   },
   {
     "chunk_id": "22eb9ae7-17f1-56bd-81ad-658a620117a1",
@@ -1878,12 +2040,14 @@
     "citation_label": "111/2025/QH15, Điều 22, khoản 1",
     "hierarchy_path": "Document/111/2025/QH15/Article/22/Clause/1",
     "chunk_level": "clause",
-    "validity_status": "unknown",
+    "validity_status": "active",
     "effective_date": "2026-05-01",
     "expiry_date": null,
     "is_published": false,
     "published_version": 1,
-    "ordinal": 82
+    "ordinal": 82,
+    "issuing_body": "QUỐC HỘI",
+    "issued_date": "2025-12-10"
   },
   {
     "chunk_id": "83cb6d1d-c3fe-507b-a187-76a08e2799a6",
@@ -1901,12 +2065,14 @@
     "citation_label": "111/2025/QH15, Điều 22, khoản 2",
     "hierarchy_path": "Document/111/2025/QH15/Article/22/Clause/2",
     "chunk_level": "clause",
-    "validity_status": "unknown",
+    "validity_status": "active",
     "effective_date": "2026-05-01",
     "expiry_date": null,
     "is_published": false,
     "published_version": 1,
-    "ordinal": 83
+    "ordinal": 83,
+    "issuing_body": "QUỐC HỘI",
+    "issued_date": "2025-12-10"
   },
   {
     "chunk_id": "f85a208c-c1f5-5b1a-96a9-eb4a6330451f",
@@ -1924,12 +2090,14 @@
     "citation_label": "111/2025/QH15, Điều 22, khoản 3",
     "hierarchy_path": "Document/111/2025/QH15/Article/22/Clause/3",
     "chunk_level": "clause",
-    "validity_status": "unknown",
+    "validity_status": "active",
     "effective_date": "2026-05-01",
     "expiry_date": null,
     "is_published": false,
     "published_version": 1,
-    "ordinal": 84
+    "ordinal": 84,
+    "issuing_body": "QUỐC HỘI",
+    "issued_date": "2025-12-10"
   },
   {
     "chunk_id": "04d01ce8-e92a-5ad8-98c3-c86dac77a9c3",
@@ -1947,12 +2115,14 @@
     "citation_label": "111/2025/QH15, Điều 23, khoản 1",
     "hierarchy_path": "Document/111/2025/QH15/Article/23/Clause/1",
     "chunk_level": "clause",
-    "validity_status": "unknown",
+    "validity_status": "active",
     "effective_date": "2026-05-01",
     "expiry_date": null,
     "is_published": false,
     "published_version": 1,
-    "ordinal": 85
+    "ordinal": 85,
+    "issuing_body": "QUỐC HỘI",
+    "issued_date": "2025-12-10"
   },
   {
     "chunk_id": "1ab38328-196e-55f3-84d5-cf8f543d810a",
@@ -1970,12 +2140,14 @@
     "citation_label": "111/2025/QH15, Điều 23, khoản 2",
     "hierarchy_path": "Document/111/2025/QH15/Article/23/Clause/2",
     "chunk_level": "clause",
-    "validity_status": "unknown",
+    "validity_status": "active",
     "effective_date": "2026-05-01",
     "expiry_date": null,
     "is_published": false,
     "published_version": 1,
-    "ordinal": 86
+    "ordinal": 86,
+    "issuing_body": "QUỐC HỘI",
+    "issued_date": "2025-12-10"
   },
   {
     "chunk_id": "2acad118-f9e4-5d78-9e14-5fec8c4abaf2",
@@ -1993,12 +2165,14 @@
     "citation_label": "111/2025/QH15, Điều 24, khoản 1",
     "hierarchy_path": "Document/111/2025/QH15/Article/24/Clause/1",
     "chunk_level": "clause",
-    "validity_status": "unknown",
+    "validity_status": "active",
     "effective_date": "2026-05-01",
     "expiry_date": null,
     "is_published": false,
     "published_version": 1,
-    "ordinal": 87
+    "ordinal": 87,
+    "issuing_body": "QUỐC HỘI",
+    "issued_date": "2025-12-10"
   },
   {
     "chunk_id": "9ca9836a-10ab-526b-a76b-ad3cfd61c892",
@@ -2016,12 +2190,14 @@
     "citation_label": "111/2025/QH15, Điều 24, khoản 2",
     "hierarchy_path": "Document/111/2025/QH15/Article/24/Clause/2",
     "chunk_level": "clause",
-    "validity_status": "unknown",
+    "validity_status": "active",
     "effective_date": "2026-05-01",
     "expiry_date": null,
     "is_published": false,
     "published_version": 1,
-    "ordinal": 88
+    "ordinal": 88,
+    "issuing_body": "QUỐC HỘI",
+    "issued_date": "2025-12-10"
   },
   {
     "chunk_id": "31efd1ac-0233-562c-bc7a-9872eab19fee",
@@ -2039,12 +2215,14 @@
     "citation_label": "111/2025/QH15, Điều 24, khoản 3",
     "hierarchy_path": "Document/111/2025/QH15/Article/24/Clause/3",
     "chunk_level": "clause",
-    "validity_status": "unknown",
+    "validity_status": "active",
     "effective_date": "2026-05-01",
     "expiry_date": null,
     "is_published": false,
     "published_version": 1,
-    "ordinal": 89
+    "ordinal": 89,
+    "issuing_body": "QUỐC HỘI",
+    "issued_date": "2025-12-10"
   },
   {
     "chunk_id": "f59c7f77-eb5b-57dd-bd5a-05564500f70a",
@@ -2062,12 +2240,14 @@
     "citation_label": "111/2025/QH15, Điều 24, khoản 4",
     "hierarchy_path": "Document/111/2025/QH15/Article/24/Clause/4",
     "chunk_level": "clause",
-    "validity_status": "unknown",
+    "validity_status": "active",
     "effective_date": "2026-05-01",
     "expiry_date": null,
     "is_published": false,
     "published_version": 1,
-    "ordinal": 90
+    "ordinal": 90,
+    "issuing_body": "QUỐC HỘI",
+    "issued_date": "2025-12-10"
   },
   {
     "chunk_id": "a7987147-30bf-532c-bf9d-ee5cd747cccf",
@@ -2085,12 +2265,14 @@
     "citation_label": "111/2025/QH15, Điều 24, khoản 5",
     "hierarchy_path": "Document/111/2025/QH15/Article/24/Clause/5",
     "chunk_level": "clause",
-    "validity_status": "unknown",
+    "validity_status": "active",
     "effective_date": "2026-05-01",
     "expiry_date": null,
     "is_published": false,
     "published_version": 1,
-    "ordinal": 91
+    "ordinal": 91,
+    "issuing_body": "QUỐC HỘI",
+    "issued_date": "2025-12-10"
   },
   {
     "chunk_id": "faeb0eb4-fb6f-5b9c-80c5-56cadefd7213",
@@ -2108,12 +2290,14 @@
     "citation_label": "111/2025/QH15, Điều 24, khoản 6",
     "hierarchy_path": "Document/111/2025/QH15/Article/24/Clause/6",
     "chunk_level": "clause",
-    "validity_status": "unknown",
+    "validity_status": "active",
     "effective_date": "2026-05-01",
     "expiry_date": null,
     "is_published": false,
     "published_version": 1,
-    "ordinal": 92
+    "ordinal": 92,
+    "issuing_body": "QUỐC HỘI",
+    "issued_date": "2025-12-10"
   },
   {
     "chunk_id": "91f462d6-52c5-58c8-803e-502223245d74",
@@ -2131,12 +2315,14 @@
     "citation_label": "111/2025/QH15, Điều 24, khoản 7",
     "hierarchy_path": "Document/111/2025/QH15/Article/24/Clause/7",
     "chunk_level": "clause",
-    "validity_status": "unknown",
+    "validity_status": "active",
     "effective_date": "2026-05-01",
     "expiry_date": null,
     "is_published": false,
     "published_version": 1,
-    "ordinal": 93
+    "ordinal": 93,
+    "issuing_body": "QUỐC HỘI",
+    "issued_date": "2025-12-10"
   },
   {
     "chunk_id": "47c65778-3497-5b58-934f-39b0fa802817",
@@ -2154,12 +2340,14 @@
     "citation_label": "111/2025/QH15, Điều 25",
     "hierarchy_path": "Document/111/2025/QH15/Article/25",
     "chunk_level": "article",
-    "validity_status": "unknown",
+    "validity_status": "active",
     "effective_date": "2026-05-01",
     "expiry_date": null,
     "is_published": false,
     "published_version": 1,
-    "ordinal": 94
+    "ordinal": 94,
+    "issuing_body": "QUỐC HỘI",
+    "issued_date": "2025-12-10"
   },
   {
     "chunk_id": "6f71c973-bd89-5b4e-90f7-b7bdfee780bf",
@@ -2177,12 +2365,14 @@
     "citation_label": "111/2025/QH15, Điều 26, khoản 1",
     "hierarchy_path": "Document/111/2025/QH15/Article/26/Clause/1",
     "chunk_level": "clause",
-    "validity_status": "unknown",
+    "validity_status": "active",
     "effective_date": "2026-05-01",
     "expiry_date": null,
     "is_published": false,
     "published_version": 1,
-    "ordinal": 95
+    "ordinal": 95,
+    "issuing_body": "QUỐC HỘI",
+    "issued_date": "2025-12-10"
   },
   {
     "chunk_id": "852a36bb-e87f-584b-8b98-11831b745220",
@@ -2200,12 +2390,14 @@
     "citation_label": "111/2025/QH15, Điều 26, khoản 2",
     "hierarchy_path": "Document/111/2025/QH15/Article/26/Clause/2",
     "chunk_level": "clause",
-    "validity_status": "unknown",
+    "validity_status": "active",
     "effective_date": "2026-05-01",
     "expiry_date": null,
     "is_published": false,
     "published_version": 1,
-    "ordinal": 96
+    "ordinal": 96,
+    "issuing_body": "QUỐC HỘI",
+    "issued_date": "2025-12-10"
   },
   {
     "chunk_id": "466faafe-2f8a-5c54-823d-e91120ea981b",
@@ -2223,12 +2415,14 @@
     "citation_label": "111/2025/QH15, Điều 27, khoản 1",
     "hierarchy_path": "Document/111/2025/QH15/Article/27/Clause/1",
     "chunk_level": "clause",
-    "validity_status": "unknown",
+    "validity_status": "active",
     "effective_date": "2026-05-01",
     "expiry_date": null,
     "is_published": false,
     "published_version": 1,
-    "ordinal": 97
+    "ordinal": 97,
+    "issuing_body": "QUỐC HỘI",
+    "issued_date": "2025-12-10"
   },
   {
     "chunk_id": "5dd19537-6716-5290-8ccc-0ea666b1bb42",
@@ -2246,12 +2440,14 @@
     "citation_label": "111/2025/QH15, Điều 27, khoản 2",
     "hierarchy_path": "Document/111/2025/QH15/Article/27/Clause/2",
     "chunk_level": "clause",
-    "validity_status": "unknown",
+    "validity_status": "active",
     "effective_date": "2026-05-01",
     "expiry_date": null,
     "is_published": false,
     "published_version": 1,
-    "ordinal": 98
+    "ordinal": 98,
+    "issuing_body": "QUỐC HỘI",
+    "issued_date": "2025-12-10"
   },
   {
     "chunk_id": "2a5ede6e-1f9b-5186-bd0d-7f7ff8679eb3",
@@ -2269,12 +2465,14 @@
     "citation_label": "111/2025/QH15, Điều 27, khoản 3",
     "hierarchy_path": "Document/111/2025/QH15/Article/27/Clause/3",
     "chunk_level": "clause",
-    "validity_status": "unknown",
+    "validity_status": "active",
     "effective_date": "2026-05-01",
     "expiry_date": null,
     "is_published": false,
     "published_version": 1,
-    "ordinal": 99
+    "ordinal": 99,
+    "issuing_body": "QUỐC HỘI",
+    "issued_date": "2025-12-10"
   },
   {
     "chunk_id": "c5b002aa-dd1e-53db-a3bd-dae470c3c117",
@@ -2292,12 +2490,14 @@
     "citation_label": "111/2025/QH15, Điều 27, khoản 4",
     "hierarchy_path": "Document/111/2025/QH15/Article/27/Clause/4",
     "chunk_level": "clause",
-    "validity_status": "unknown",
+    "validity_status": "active",
     "effective_date": "2026-05-01",
     "expiry_date": null,
     "is_published": false,
     "published_version": 1,
-    "ordinal": 100
+    "ordinal": 100,
+    "issuing_body": "QUỐC HỘI",
+    "issued_date": "2025-12-10"
   },
   {
     "chunk_id": "010b7a9e-db0d-5147-8aa3-0f3d9d0374b1",
@@ -2315,12 +2515,14 @@
     "citation_label": "111/2025/QH15, Điều 27, khoản 5",
     "hierarchy_path": "Document/111/2025/QH15/Article/27/Clause/5",
     "chunk_level": "clause",
-    "validity_status": "unknown",
+    "validity_status": "active",
     "effective_date": "2026-05-01",
     "expiry_date": null,
     "is_published": false,
     "published_version": 1,
-    "ordinal": 101
+    "ordinal": 101,
+    "issuing_body": "QUỐC HỘI",
+    "issued_date": "2025-12-10"
   },
   {
     "chunk_id": "7c93d789-909b-52e7-9a06-6caa42a668af",
@@ -2338,12 +2540,14 @@
     "citation_label": "111/2025/QH15, Điều 28, khoản 1",
     "hierarchy_path": "Document/111/2025/QH15/Article/28/Clause/1",
     "chunk_level": "clause",
-    "validity_status": "unknown",
+    "validity_status": "active",
     "effective_date": "2026-05-01",
     "expiry_date": null,
     "is_published": false,
     "published_version": 1,
-    "ordinal": 102
+    "ordinal": 102,
+    "issuing_body": "QUỐC HỘI",
+    "issued_date": "2025-12-10"
   },
   {
     "chunk_id": "af88b491-399d-5aad-8c3f-8459fb2e1691",
@@ -2361,12 +2565,14 @@
     "citation_label": "111/2025/QH15, Điều 28, khoản 2",
     "hierarchy_path": "Document/111/2025/QH15/Article/28/Clause/2",
     "chunk_level": "clause",
-    "validity_status": "unknown",
+    "validity_status": "active",
     "effective_date": "2026-05-01",
     "expiry_date": null,
     "is_published": false,
     "published_version": 1,
-    "ordinal": 103
+    "ordinal": 103,
+    "issuing_body": "QUỐC HỘI",
+    "issued_date": "2025-12-10"
   },
   {
     "chunk_id": "0cf91dfd-2cf9-5259-9ce9-0d5cccafab6f",
@@ -2384,12 +2590,14 @@
     "citation_label": "111/2025/QH15, Điều 28, khoản 3",
     "hierarchy_path": "Document/111/2025/QH15/Article/28/Clause/3",
     "chunk_level": "clause",
-    "validity_status": "unknown",
+    "validity_status": "active",
     "effective_date": "2026-05-01",
     "expiry_date": null,
     "is_published": false,
     "published_version": 1,
-    "ordinal": 104
+    "ordinal": 104,
+    "issuing_body": "QUỐC HỘI",
+    "issued_date": "2025-12-10"
   },
   {
     "chunk_id": "571dd2a9-a64b-545b-93b2-8fb832eb73cf",
@@ -2407,12 +2615,14 @@
     "citation_label": "111/2025/QH15, Điều 28, khoản 4",
     "hierarchy_path": "Document/111/2025/QH15/Article/28/Clause/4",
     "chunk_level": "clause",
-    "validity_status": "unknown",
+    "validity_status": "active",
     "effective_date": "2026-05-01",
     "expiry_date": null,
     "is_published": false,
     "published_version": 1,
-    "ordinal": 105
+    "ordinal": 105,
+    "issuing_body": "QUỐC HỘI",
+    "issued_date": "2025-12-10"
   },
   {
     "chunk_id": "52efe7e6-9379-5ae3-aa37-69bdee589c72",
@@ -2430,12 +2640,14 @@
     "citation_label": "111/2025/QH15, Điều 28, khoản 5",
     "hierarchy_path": "Document/111/2025/QH15/Article/28/Clause/5",
     "chunk_level": "clause",
-    "validity_status": "unknown",
+    "validity_status": "active",
     "effective_date": "2026-05-01",
     "expiry_date": null,
     "is_published": false,
     "published_version": 1,
-    "ordinal": 106
+    "ordinal": 106,
+    "issuing_body": "QUỐC HỘI",
+    "issued_date": "2025-12-10"
   },
   {
     "chunk_id": "de1afa28-b84d-5780-ae8a-92623967741e",
@@ -2453,12 +2665,14 @@
     "citation_label": "111/2025/QH15, Điều 28, khoản 6",
     "hierarchy_path": "Document/111/2025/QH15/Article/28/Clause/6",
     "chunk_level": "clause",
-    "validity_status": "unknown",
+    "validity_status": "active",
     "effective_date": "2026-05-01",
     "expiry_date": null,
     "is_published": false,
     "published_version": 1,
-    "ordinal": 107
+    "ordinal": 107,
+    "issuing_body": "QUỐC HỘI",
+    "issued_date": "2025-12-10"
   },
   {
     "chunk_id": "11bc701f-f522-5923-bb7b-0bf77dd2861f",
@@ -2476,12 +2690,14 @@
     "citation_label": "111/2025/QH15, Điều 29, khoản 1",
     "hierarchy_path": "Document/111/2025/QH15/Article/29/Clause/1",
     "chunk_level": "clause",
-    "validity_status": "unknown",
+    "validity_status": "active",
     "effective_date": "2026-05-01",
     "expiry_date": null,
     "is_published": false,
     "published_version": 1,
-    "ordinal": 108
+    "ordinal": 108,
+    "issuing_body": "QUỐC HỘI",
+    "issued_date": "2025-12-10"
   },
   {
     "chunk_id": "9c5e079c-dbb9-5cf1-9391-6483c438a831",
@@ -2499,12 +2715,14 @@
     "citation_label": "111/2025/QH15, Điều 29, khoản 2",
     "hierarchy_path": "Document/111/2025/QH15/Article/29/Clause/2",
     "chunk_level": "clause",
-    "validity_status": "unknown",
+    "validity_status": "active",
     "effective_date": "2026-05-01",
     "expiry_date": null,
     "is_published": false,
     "published_version": 1,
-    "ordinal": 109
+    "ordinal": 109,
+    "issuing_body": "QUỐC HỘI",
+    "issued_date": "2025-12-10"
   },
   {
     "chunk_id": "e5042ab4-20a0-55e0-9d61-b4a2b4d474b1",
@@ -2522,12 +2740,14 @@
     "citation_label": "111/2025/QH15, Điều 29, khoản 3",
     "hierarchy_path": "Document/111/2025/QH15/Article/29/Clause/3",
     "chunk_level": "clause",
-    "validity_status": "unknown",
+    "validity_status": "active",
     "effective_date": "2026-05-01",
     "expiry_date": null,
     "is_published": false,
     "published_version": 1,
-    "ordinal": 110
+    "ordinal": 110,
+    "issuing_body": "QUỐC HỘI",
+    "issued_date": "2025-12-10"
   },
   {
     "chunk_id": "15964fea-3799-51db-9cbd-4b5416e75237",
@@ -2545,12 +2765,14 @@
     "citation_label": "111/2025/QH15, Điều 29, khoản 4",
     "hierarchy_path": "Document/111/2025/QH15/Article/29/Clause/4",
     "chunk_level": "clause",
-    "validity_status": "unknown",
+    "validity_status": "active",
     "effective_date": "2026-05-01",
     "expiry_date": null,
     "is_published": false,
     "published_version": 1,
-    "ordinal": 111
+    "ordinal": 111,
+    "issuing_body": "QUỐC HỘI",
+    "issued_date": "2025-12-10"
   },
   {
     "chunk_id": "db9cc67a-b282-5f85-be5d-63032680893a",
@@ -2568,12 +2790,14 @@
     "citation_label": "111/2025/QH15, Điều 30, khoản 1",
     "hierarchy_path": "Document/111/2025/QH15/Article/30/Clause/1",
     "chunk_level": "clause",
-    "validity_status": "unknown",
+    "validity_status": "active",
     "effective_date": "2026-05-01",
     "expiry_date": null,
     "is_published": false,
     "published_version": 1,
-    "ordinal": 112
+    "ordinal": 112,
+    "issuing_body": "QUỐC HỘI",
+    "issued_date": "2025-12-10"
   },
   {
     "chunk_id": "20075d91-7ba4-5727-8e7c-af6c7b94b501",
@@ -2591,12 +2815,14 @@
     "citation_label": "111/2025/QH15, Điều 30, khoản 2",
     "hierarchy_path": "Document/111/2025/QH15/Article/30/Clause/2",
     "chunk_level": "clause",
-    "validity_status": "unknown",
+    "validity_status": "active",
     "effective_date": "2026-05-01",
     "expiry_date": null,
     "is_published": false,
     "published_version": 1,
-    "ordinal": 113
+    "ordinal": 113,
+    "issuing_body": "QUỐC HỘI",
+    "issued_date": "2025-12-10"
   },
   {
     "chunk_id": "e6734e9f-fe3a-513d-be9f-3a3b52cb773e",
@@ -2614,12 +2840,14 @@
     "citation_label": "111/2025/QH15, Điều 30, khoản 3",
     "hierarchy_path": "Document/111/2025/QH15/Article/30/Clause/3",
     "chunk_level": "clause",
-    "validity_status": "unknown",
+    "validity_status": "active",
     "effective_date": "2026-05-01",
     "expiry_date": null,
     "is_published": false,
     "published_version": 1,
-    "ordinal": 114
+    "ordinal": 114,
+    "issuing_body": "QUỐC HỘI",
+    "issued_date": "2025-12-10"
   },
   {
     "chunk_id": "7ca80d52-c275-5ae2-91a4-c43478f4c058",
@@ -2637,12 +2865,14 @@
     "citation_label": "111/2025/QH15, Điều 30, khoản 4",
     "hierarchy_path": "Document/111/2025/QH15/Article/30/Clause/4",
     "chunk_level": "clause",
-    "validity_status": "unknown",
+    "validity_status": "active",
     "effective_date": "2026-05-01",
     "expiry_date": null,
     "is_published": false,
     "published_version": 1,
-    "ordinal": 115
+    "ordinal": 115,
+    "issuing_body": "QUỐC HỘI",
+    "issued_date": "2025-12-10"
   },
   {
     "chunk_id": "0a4ec35d-f3be-58bc-961c-32f0385bac44",
@@ -2660,12 +2890,14 @@
     "citation_label": "111/2025/QH15, Điều 30, khoản 5",
     "hierarchy_path": "Document/111/2025/QH15/Article/30/Clause/5",
     "chunk_level": "clause",
-    "validity_status": "unknown",
+    "validity_status": "active",
     "effective_date": "2026-05-01",
     "expiry_date": null,
     "is_published": false,
     "published_version": 1,
-    "ordinal": 116
+    "ordinal": 116,
+    "issuing_body": "QUỐC HỘI",
+    "issued_date": "2025-12-10"
   },
   {
     "chunk_id": "6e8f35a9-c50a-598a-a7cb-493131539600",
@@ -2683,12 +2915,14 @@
     "citation_label": "111/2025/QH15, Điều 30, khoản 6",
     "hierarchy_path": "Document/111/2025/QH15/Article/30/Clause/6",
     "chunk_level": "clause",
-    "validity_status": "unknown",
+    "validity_status": "active",
     "effective_date": "2026-05-01",
     "expiry_date": null,
     "is_published": false,
     "published_version": 1,
-    "ordinal": 117
+    "ordinal": 117,
+    "issuing_body": "QUỐC HỘI",
+    "issued_date": "2025-12-10"
   },
   {
     "chunk_id": "d7897293-3f8b-5214-89df-74aeb410f663",
@@ -2706,12 +2940,14 @@
     "citation_label": "111/2025/QH15, Điều 30, khoản 7",
     "hierarchy_path": "Document/111/2025/QH15/Article/30/Clause/7",
     "chunk_level": "clause",
-    "validity_status": "unknown",
+    "validity_status": "active",
     "effective_date": "2026-05-01",
     "expiry_date": null,
     "is_published": false,
     "published_version": 1,
-    "ordinal": 118
+    "ordinal": 118,
+    "issuing_body": "QUỐC HỘI",
+    "issued_date": "2025-12-10"
   },
   {
     "chunk_id": "e9712943-884b-520b-b84e-19ef12556136",
@@ -2729,12 +2965,14 @@
     "citation_label": "111/2025/QH15, Điều 31, khoản 1",
     "hierarchy_path": "Document/111/2025/QH15/Article/31/Clause/1",
     "chunk_level": "clause",
-    "validity_status": "unknown",
+    "validity_status": "active",
     "effective_date": "2026-05-01",
     "expiry_date": null,
     "is_published": false,
     "published_version": 1,
-    "ordinal": 119
+    "ordinal": 119,
+    "issuing_body": "QUỐC HỘI",
+    "issued_date": "2025-12-10"
   },
   {
     "chunk_id": "536fd06e-cfd1-5ae4-a39b-e060338933e2",
@@ -2752,12 +2990,14 @@
     "citation_label": "111/2025/QH15, Điều 31, khoản 2",
     "hierarchy_path": "Document/111/2025/QH15/Article/31/Clause/2",
     "chunk_level": "clause",
-    "validity_status": "unknown",
+    "validity_status": "active",
     "effective_date": "2026-05-01",
     "expiry_date": null,
     "is_published": false,
     "published_version": 1,
-    "ordinal": 120
+    "ordinal": 120,
+    "issuing_body": "QUỐC HỘI",
+    "issued_date": "2025-12-10"
   },
   {
     "chunk_id": "bda9cab8-385e-55e6-9c48-727859082c91",
@@ -2775,12 +3015,14 @@
     "citation_label": "111/2025/QH15, Điều 31, khoản 3",
     "hierarchy_path": "Document/111/2025/QH15/Article/31/Clause/3",
     "chunk_level": "clause",
-    "validity_status": "unknown",
+    "validity_status": "active",
     "effective_date": "2026-05-01",
     "expiry_date": null,
     "is_published": false,
     "published_version": 1,
-    "ordinal": 121
+    "ordinal": 121,
+    "issuing_body": "QUỐC HỘI",
+    "issued_date": "2025-12-10"
   },
   {
     "chunk_id": "386fa1f7-ce8a-5b4b-8ced-0a0ff3a8528b",
@@ -2798,12 +3040,14 @@
     "citation_label": "111/2025/QH15, Điều 32, khoản 1",
     "hierarchy_path": "Document/111/2025/QH15/Article/32/Clause/1",
     "chunk_level": "clause",
-    "validity_status": "unknown",
+    "validity_status": "active",
     "effective_date": "2026-05-01",
     "expiry_date": null,
     "is_published": false,
     "published_version": 1,
-    "ordinal": 122
+    "ordinal": 122,
+    "issuing_body": "QUỐC HỘI",
+    "issued_date": "2025-12-10"
   },
   {
     "chunk_id": "9e45ab35-2494-5d8b-824a-6332e939cefe",
@@ -2821,12 +3065,14 @@
     "citation_label": "111/2025/QH15, Điều 32, khoản 2",
     "hierarchy_path": "Document/111/2025/QH15/Article/32/Clause/2",
     "chunk_level": "clause",
-    "validity_status": "unknown",
+    "validity_status": "active",
     "effective_date": "2026-05-01",
     "expiry_date": null,
     "is_published": false,
     "published_version": 1,
-    "ordinal": 123
+    "ordinal": 123,
+    "issuing_body": "QUỐC HỘI",
+    "issued_date": "2025-12-10"
   },
   {
     "chunk_id": "158aa67f-b84e-56ef-b857-dc885d45e3a4",
@@ -2844,12 +3090,14 @@
     "citation_label": "111/2025/QH15, Điều 33, khoản 1",
     "hierarchy_path": "Document/111/2025/QH15/Article/33/Clause/1",
     "chunk_level": "clause",
-    "validity_status": "unknown",
+    "validity_status": "active",
     "effective_date": "2026-05-01",
     "expiry_date": null,
     "is_published": false,
     "published_version": 1,
-    "ordinal": 124
+    "ordinal": 124,
+    "issuing_body": "QUỐC HỘI",
+    "issued_date": "2025-12-10"
   },
   {
     "chunk_id": "14968b42-08c9-5362-8d14-2f753bf07ec1",
@@ -2867,12 +3115,14 @@
     "citation_label": "111/2025/QH15, Điều 33, khoản 2",
     "hierarchy_path": "Document/111/2025/QH15/Article/33/Clause/2",
     "chunk_level": "clause",
-    "validity_status": "unknown",
+    "validity_status": "active",
     "effective_date": "2026-05-01",
     "expiry_date": null,
     "is_published": false,
     "published_version": 1,
-    "ordinal": 125
+    "ordinal": 125,
+    "issuing_body": "QUỐC HỘI",
+    "issued_date": "2025-12-10"
   },
   {
     "chunk_id": "41bdb3d9-343c-5679-aeb3-0bd2976fe596",
@@ -2890,12 +3140,14 @@
     "citation_label": "111/2025/QH15, Điều 33, khoản 3",
     "hierarchy_path": "Document/111/2025/QH15/Article/33/Clause/3",
     "chunk_level": "clause",
-    "validity_status": "unknown",
+    "validity_status": "active",
     "effective_date": "2026-05-01",
     "expiry_date": null,
     "is_published": false,
     "published_version": 1,
-    "ordinal": 126
+    "ordinal": 126,
+    "issuing_body": "QUỐC HỘI",
+    "issued_date": "2025-12-10"
   },
   {
     "chunk_id": "9dd22ef1-5202-56fa-bcbe-b4081def6807",
@@ -2913,12 +3165,14 @@
     "citation_label": "111/2025/QH15, Điều 34, khoản 1",
     "hierarchy_path": "Document/111/2025/QH15/Article/34/Clause/1",
     "chunk_level": "clause",
-    "validity_status": "unknown",
+    "validity_status": "active",
     "effective_date": "2026-05-01",
     "expiry_date": null,
     "is_published": false,
     "published_version": 1,
-    "ordinal": 127
+    "ordinal": 127,
+    "issuing_body": "QUỐC HỘI",
+    "issued_date": "2025-12-10"
   },
   {
     "chunk_id": "ca40bfcc-e777-5c19-b0ef-6bae0ebaa693",
@@ -2936,12 +3190,14 @@
     "citation_label": "111/2025/QH15, Điều 34, khoản 2",
     "hierarchy_path": "Document/111/2025/QH15/Article/34/Clause/2",
     "chunk_level": "clause",
-    "validity_status": "unknown",
+    "validity_status": "active",
     "effective_date": "2026-05-01",
     "expiry_date": null,
     "is_published": false,
     "published_version": 1,
-    "ordinal": 128
+    "ordinal": 128,
+    "issuing_body": "QUỐC HỘI",
+    "issued_date": "2025-12-10"
   },
   {
     "chunk_id": "596d3a6c-716e-5bda-ac92-16821e222479",
@@ -2959,12 +3215,14 @@
     "citation_label": "111/2025/QH15, Điều 34, khoản 3",
     "hierarchy_path": "Document/111/2025/QH15/Article/34/Clause/3",
     "chunk_level": "clause",
-    "validity_status": "unknown",
+    "validity_status": "active",
     "effective_date": "2026-05-01",
     "expiry_date": null,
     "is_published": false,
     "published_version": 1,
-    "ordinal": 129
+    "ordinal": 129,
+    "issuing_body": "QUỐC HỘI",
+    "issued_date": "2025-12-10"
   },
   {
     "chunk_id": "485fa23d-5316-5a71-8d7a-7d79e2e7b8c9",
@@ -2982,12 +3240,14 @@
     "citation_label": "111/2025/QH15, Điều 34, khoản 4",
     "hierarchy_path": "Document/111/2025/QH15/Article/34/Clause/4",
     "chunk_level": "clause",
-    "validity_status": "unknown",
+    "validity_status": "active",
     "effective_date": "2026-05-01",
     "expiry_date": null,
     "is_published": false,
     "published_version": 1,
-    "ordinal": 130
+    "ordinal": 130,
+    "issuing_body": "QUỐC HỘI",
+    "issued_date": "2025-12-10"
   },
   {
     "chunk_id": "45b59d75-121a-52c1-b8eb-c12c9ff175b9",
@@ -3005,12 +3265,14 @@
     "citation_label": "111/2025/QH15, Điều 34, khoản 5",
     "hierarchy_path": "Document/111/2025/QH15/Article/34/Clause/5",
     "chunk_level": "clause",
-    "validity_status": "unknown",
+    "validity_status": "active",
     "effective_date": "2026-05-01",
     "expiry_date": null,
     "is_published": false,
     "published_version": 1,
-    "ordinal": 131
+    "ordinal": 131,
+    "issuing_body": "QUỐC HỘI",
+    "issued_date": "2025-12-10"
   },
   {
     "chunk_id": "21a085f9-787c-56b9-8ed0-e6e4832ffbd0",
@@ -3028,12 +3290,14 @@
     "citation_label": "111/2025/QH15, Điều 35, khoản 1",
     "hierarchy_path": "Document/111/2025/QH15/Article/35/Clause/1",
     "chunk_level": "clause",
-    "validity_status": "unknown",
+    "validity_status": "active",
     "effective_date": "2026-05-01",
     "expiry_date": null,
     "is_published": false,
     "published_version": 1,
-    "ordinal": 132
+    "ordinal": 132,
+    "issuing_body": "QUỐC HỘI",
+    "issued_date": "2025-12-10"
   },
   {
     "chunk_id": "3fefb9d7-0c28-5e83-8770-c0b322fb9247",
@@ -3051,12 +3315,14 @@
     "citation_label": "111/2025/QH15, Điều 35, khoản 2",
     "hierarchy_path": "Document/111/2025/QH15/Article/35/Clause/2",
     "chunk_level": "clause",
-    "validity_status": "unknown",
+    "validity_status": "active",
     "effective_date": "2026-05-01",
     "expiry_date": null,
     "is_published": false,
     "published_version": 1,
-    "ordinal": 133
+    "ordinal": 133,
+    "issuing_body": "QUỐC HỘI",
+    "issued_date": "2025-12-10"
   },
   {
     "chunk_id": "fff8fe7c-617b-52fd-852c-42338377876f",
@@ -3074,12 +3340,14 @@
     "citation_label": "111/2025/QH15, Điều 35, khoản 3",
     "hierarchy_path": "Document/111/2025/QH15/Article/35/Clause/3",
     "chunk_level": "clause",
-    "validity_status": "unknown",
+    "validity_status": "active",
     "effective_date": "2026-05-01",
     "expiry_date": null,
     "is_published": false,
     "published_version": 1,
-    "ordinal": 134
+    "ordinal": 134,
+    "issuing_body": "QUỐC HỘI",
+    "issued_date": "2025-12-10"
   },
   {
     "chunk_id": "9e91332a-78af-5cef-a7cd-6823aa522e42",
@@ -3097,12 +3365,14 @@
     "citation_label": "111/2025/QH15, Điều 36, khoản 1",
     "hierarchy_path": "Document/111/2025/QH15/Article/36/Clause/1",
     "chunk_level": "clause",
-    "validity_status": "unknown",
+    "validity_status": "active",
     "effective_date": "2026-05-01",
     "expiry_date": null,
     "is_published": false,
     "published_version": 1,
-    "ordinal": 135
+    "ordinal": 135,
+    "issuing_body": "QUỐC HỘI",
+    "issued_date": "2025-12-10"
   },
   {
     "chunk_id": "f3cbeda4-a815-5ca4-9a86-059c821df1cc",
@@ -3120,12 +3390,14 @@
     "citation_label": "111/2025/QH15, Điều 36, khoản 2",
     "hierarchy_path": "Document/111/2025/QH15/Article/36/Clause/2",
     "chunk_level": "clause",
-    "validity_status": "unknown",
+    "validity_status": "active",
     "effective_date": "2026-05-01",
     "expiry_date": null,
     "is_published": false,
     "published_version": 1,
-    "ordinal": 136
+    "ordinal": 136,
+    "issuing_body": "QUỐC HỘI",
+    "issued_date": "2025-12-10"
   },
   {
     "chunk_id": "3c806a30-fb4b-5082-b195-3b20f3c287ab",
@@ -3143,12 +3415,14 @@
     "citation_label": "111/2025/QH15, Điều 36, khoản 3",
     "hierarchy_path": "Document/111/2025/QH15/Article/36/Clause/3",
     "chunk_level": "clause",
-    "validity_status": "unknown",
+    "validity_status": "active",
     "effective_date": "2026-05-01",
     "expiry_date": null,
     "is_published": false,
     "published_version": 1,
-    "ordinal": 137
+    "ordinal": 137,
+    "issuing_body": "QUỐC HỘI",
+    "issued_date": "2025-12-10"
   },
   {
     "chunk_id": "eb37ef8e-2105-59a1-b1ce-bf5df0e04143",
@@ -3166,12 +3440,14 @@
     "citation_label": "111/2025/QH15, Điều 36, khoản 4",
     "hierarchy_path": "Document/111/2025/QH15/Article/36/Clause/4",
     "chunk_level": "clause",
-    "validity_status": "unknown",
+    "validity_status": "active",
     "effective_date": "2026-05-01",
     "expiry_date": null,
     "is_published": false,
     "published_version": 1,
-    "ordinal": 138
+    "ordinal": 138,
+    "issuing_body": "QUỐC HỘI",
+    "issued_date": "2025-12-10"
   },
   {
     "chunk_id": "692487d8-a921-5262-9754-f47506804645",
@@ -3189,12 +3465,14 @@
     "citation_label": "111/2025/QH15, Điều 37, khoản 1",
     "hierarchy_path": "Document/111/2025/QH15/Article/37/Clause/1",
     "chunk_level": "clause",
-    "validity_status": "unknown",
+    "validity_status": "active",
     "effective_date": "2026-05-01",
     "expiry_date": null,
     "is_published": false,
     "published_version": 1,
-    "ordinal": 139
+    "ordinal": 139,
+    "issuing_body": "QUỐC HỘI",
+    "issued_date": "2025-12-10"
   },
   {
     "chunk_id": "0973937a-04b6-5f1d-b634-3b55347db532",
@@ -3212,12 +3490,14 @@
     "citation_label": "111/2025/QH15, Điều 37, khoản 2",
     "hierarchy_path": "Document/111/2025/QH15/Article/37/Clause/2",
     "chunk_level": "clause",
-    "validity_status": "unknown",
+    "validity_status": "active",
     "effective_date": "2026-05-01",
     "expiry_date": null,
     "is_published": false,
     "published_version": 1,
-    "ordinal": 140
+    "ordinal": 140,
+    "issuing_body": "QUỐC HỘI",
+    "issued_date": "2025-12-10"
   },
   {
     "chunk_id": "81f58459-2671-542f-ae86-45dfd7dcdde4",
@@ -3235,12 +3515,14 @@
     "citation_label": "111/2025/QH15, Điều 38, khoản 1",
     "hierarchy_path": "Document/111/2025/QH15/Article/38/Clause/1",
     "chunk_level": "clause",
-    "validity_status": "unknown",
+    "validity_status": "active",
     "effective_date": "2026-05-01",
     "expiry_date": null,
     "is_published": false,
     "published_version": 1,
-    "ordinal": 141
+    "ordinal": 141,
+    "issuing_body": "QUỐC HỘI",
+    "issued_date": "2025-12-10"
   },
   {
     "chunk_id": "ec660ea1-f5a5-54c3-8972-4912d9a9669e",
@@ -3258,12 +3540,14 @@
     "citation_label": "111/2025/QH15, Điều 38, khoản 2",
     "hierarchy_path": "Document/111/2025/QH15/Article/38/Clause/2",
     "chunk_level": "clause",
-    "validity_status": "unknown",
+    "validity_status": "active",
     "effective_date": "2026-05-01",
     "expiry_date": null,
     "is_published": false,
     "published_version": 1,
-    "ordinal": 142
+    "ordinal": 142,
+    "issuing_body": "QUỐC HỘI",
+    "issued_date": "2025-12-10"
   },
   {
     "chunk_id": "f24687d1-994d-58ad-a915-01a5723f627c",
@@ -3281,12 +3565,14 @@
     "citation_label": "111/2025/QH15, Điều 38, khoản 3",
     "hierarchy_path": "Document/111/2025/QH15/Article/38/Clause/3",
     "chunk_level": "clause",
-    "validity_status": "unknown",
+    "validity_status": "active",
     "effective_date": "2026-05-01",
     "expiry_date": null,
     "is_published": false,
     "published_version": 1,
-    "ordinal": 143
+    "ordinal": 143,
+    "issuing_body": "QUỐC HỘI",
+    "issued_date": "2025-12-10"
   },
   {
     "chunk_id": "14159e8f-4721-5679-befc-cbfdff4377cd",
@@ -3304,12 +3590,14 @@
     "citation_label": "111/2025/QH15, Điều 39",
     "hierarchy_path": "Document/111/2025/QH15/Article/39",
     "chunk_level": "article",
-    "validity_status": "unknown",
+    "validity_status": "active",
     "effective_date": "2026-05-01",
     "expiry_date": null,
     "is_published": false,
     "published_version": 1,
-    "ordinal": 144
+    "ordinal": 144,
+    "issuing_body": "QUỐC HỘI",
+    "issued_date": "2025-12-10"
   },
   {
     "chunk_id": "b747948d-52f6-5b85-b8e7-77ad985824d1",
@@ -3327,12 +3615,14 @@
     "citation_label": "111/2025/QH15, Điều 40, khoản 1",
     "hierarchy_path": "Document/111/2025/QH15/Article/40/Clause/1",
     "chunk_level": "clause",
-    "validity_status": "unknown",
+    "validity_status": "active",
     "effective_date": "2026-05-01",
     "expiry_date": null,
     "is_published": false,
     "published_version": 1,
-    "ordinal": 145
+    "ordinal": 145,
+    "issuing_body": "QUỐC HỘI",
+    "issued_date": "2025-12-10"
   },
   {
     "chunk_id": "7ba5912b-9335-50f4-95c6-d98131aacc8a",
@@ -3350,12 +3640,14 @@
     "citation_label": "111/2025/QH15, Điều 40, khoản 2",
     "hierarchy_path": "Document/111/2025/QH15/Article/40/Clause/2",
     "chunk_level": "clause",
-    "validity_status": "unknown",
+    "validity_status": "active",
     "effective_date": "2026-05-01",
     "expiry_date": null,
     "is_published": false,
     "published_version": 1,
-    "ordinal": 146
+    "ordinal": 146,
+    "issuing_body": "QUỐC HỘI",
+    "issued_date": "2025-12-10"
   },
   {
     "chunk_id": "ccc4ad75-10ef-5d0f-b4ab-649a9b134607",
@@ -3373,12 +3665,14 @@
     "citation_label": "111/2025/QH15, Điều 41, khoản 1",
     "hierarchy_path": "Document/111/2025/QH15/Article/41/Clause/1",
     "chunk_level": "clause",
-    "validity_status": "unknown",
+    "validity_status": "active",
     "effective_date": "2026-05-01",
     "expiry_date": null,
     "is_published": false,
     "published_version": 1,
-    "ordinal": 147
+    "ordinal": 147,
+    "issuing_body": "QUỐC HỘI",
+    "issued_date": "2025-12-10"
   },
   {
     "chunk_id": "958e5d86-8ae1-5529-b8fa-b2f2c815ea6e",
@@ -3396,12 +3690,14 @@
     "citation_label": "111/2025/QH15, Điều 41, khoản 2",
     "hierarchy_path": "Document/111/2025/QH15/Article/41/Clause/2",
     "chunk_level": "clause",
-    "validity_status": "unknown",
+    "validity_status": "active",
     "effective_date": "2026-05-01",
     "expiry_date": null,
     "is_published": false,
     "published_version": 1,
-    "ordinal": 148
+    "ordinal": 148,
+    "issuing_body": "QUỐC HỘI",
+    "issued_date": "2025-12-10"
   },
   {
     "chunk_id": "4b5ef5f3-2202-58e1-b03d-c199ebc16e29",
@@ -3419,11 +3715,13 @@
     "citation_label": "111/2025/QH15, Điều 41, khoản 3",
     "hierarchy_path": "Document/111/2025/QH15/Article/41/Clause/3",
     "chunk_level": "clause",
-    "validity_status": "unknown",
+    "validity_status": "active",
     "effective_date": "2026-05-01",
     "expiry_date": null,
     "is_published": false,
     "published_version": 1,
-    "ordinal": 149
+    "ordinal": 149,
+    "issuing_body": "QUỐC HỘI",
+    "issued_date": "2025-12-10"
   }
 ]

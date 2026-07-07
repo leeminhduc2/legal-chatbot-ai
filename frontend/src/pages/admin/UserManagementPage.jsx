@@ -7,7 +7,7 @@ import toast from 'react-hot-toast';
 import './AdminPage.css';
 
 const ROLES = ['admin', 'business_user'];
-const EMPTY_FORM = { username: '', password: '', role: 'business_user' };
+const EMPTY_FORM = { username: '', password: '', role: 'business_user', allowed_field_ids: '' };
 
 export default function UserManagementPage() {
   const { t } = useTranslation();
@@ -60,11 +60,16 @@ export default function UserManagementPage() {
       toast.error(t('admin.users.password_min'));
       return false;
     }
+    if (form.role !== 'admin' && parseFieldIds(form.allowed_field_ids) === null) {
+      toast.error(t('admin.users.field_ids_invalid'));
+      return false;
+    }
     return true;
   };
 
   const handleAdd = async () => {
     if (!validateForm({ requirePassword: true })) return;
+    const allowedFieldIds = form.role === 'admin' ? [] : parseFieldIds(form.allowed_field_ids);
     setSubmitting(true);
     try {
       await api('/admin/users', {
@@ -74,6 +79,7 @@ export default function UserManagementPage() {
           username: form.username.trim(),
           password: form.password,
           role: form.role,
+          allowed_field_ids: allowedFieldIds,
         }),
       });
       toast.success(t('admin.users.user_added'));
@@ -89,6 +95,7 @@ export default function UserManagementPage() {
 
   const handleEdit = async () => {
     if (!validateForm({ requirePassword: false })) return;
+    const allowedFieldIds = form.role === 'admin' ? [] : parseFieldIds(form.allowed_field_ids);
     setSubmitting(true);
     try {
       await api(`/admin/users/${editUser.id}`, {
@@ -96,6 +103,7 @@ export default function UserManagementPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           role: form.role,
+          allowed_field_ids: allowedFieldIds,
           ...(form.password ? { password: form.password } : {}),
         }),
       });
@@ -134,7 +142,14 @@ export default function UserManagementPage() {
 
   const openEdit = (user) => {
     setEditUser(user);
-    setForm({ username: user.username, password: '', role: user.role });
+    setForm({
+      username: user.username,
+      password: '',
+      role: user.role,
+      allowed_field_ids: Array.isArray(user.allowed_field_ids)
+        ? user.allowed_field_ids.join(', ')
+        : '',
+    });
   };
 
   const roleBadge = {
@@ -173,6 +188,7 @@ export default function UserManagementPage() {
             <tr>
               <th>{t('admin.users.username')}</th>
               <th>{t('admin.users.role')}</th>
+              <th>{t('admin.users.field_ids')}</th>
               <th>{t('admin.users.created')}</th>
               <th>{t('admin.users.status')}</th>
               <th>{t('admin.users.actions')}</th>
@@ -194,6 +210,7 @@ export default function UserManagementPage() {
                     {t(`roles.${user.role}`)}
                   </span>
                 </td>
+                <td>{formatFieldAccess(user, t)}</td>
                 <td>{user.created_at?.split('T')[0] || '-'}</td>
                 <td>
                   <span className={`badge ${user.is_active ? 'badge-success' : 'badge-danger'}`}>
@@ -213,7 +230,7 @@ export default function UserManagementPage() {
               </tr>
             ))}
             {filteredUsers.length === 0 && (
-              <tr><td colSpan="5" className="text-center text-muted" style={{ padding: 32 }}>{t('admin.users.no_users')}</td></tr>
+              <tr><td colSpan="6" className="text-center text-muted" style={{ padding: 32 }}>{t('admin.users.no_users')}</td></tr>
             )}
           </tbody>
         </table>
@@ -281,6 +298,34 @@ function UserForm({ form, setForm, t, editing = false, isSelf = false }) {
           </span>
         )}
       </div>
+      <div className="form-group">
+        <label>{t('admin.users.field_ids')}</label>
+        <input
+          value={form.allowed_field_ids}
+          onChange={(e) => setForm({ ...form, allowed_field_ids: e.target.value })}
+          placeholder="1,2,5"
+          disabled={form.role === 'admin'}
+        />
+        <span className="text-muted text-sm" style={{ marginTop: 4, display: 'block' }}>
+          {form.role === 'admin'
+            ? t('admin.users.all_fields_help')
+            : t('admin.users.field_ids_help')}
+        </span>
+      </div>
     </>
   );
+}
+
+function parseFieldIds(value) {
+  const text = String(value || '').trim();
+  if (!text) return [];
+  const parts = text.split(',').map((part) => part.trim()).filter(Boolean);
+  if (parts.some((part) => !/^\d+$/.test(part))) return null;
+  return [...new Set(parts.map((part) => Number(part)))].sort((left, right) => left - right);
+}
+
+function formatFieldAccess(user, t) {
+  if (user.role === 'admin') return t('admin.users.all_fields');
+  const fieldIds = Array.isArray(user.allowed_field_ids) ? user.allowed_field_ids : [];
+  return [...new Set([0, ...fieldIds])].sort((left, right) => left - right).join(', ');
 }

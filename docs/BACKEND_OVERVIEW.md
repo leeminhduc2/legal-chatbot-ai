@@ -79,6 +79,8 @@ POST /api/v1/admin/documents/import
 
 SQLite là source of truth ở tầng app: `document_registry`, `document_versions`, `document_relations`, `pipeline_runs`, `pipeline_events`. Chroma, Neo4j và Elasticsearch/BM25 là index rebuild được từ dữ liệu/version đã lưu.
 
+Access control theo lĩnh vực dùng `document_registry.field_id` và bảng `user_field_permissions`. `field_id = 0` là public; admin unrestricted; guest chỉ có field 0; business user có field 0 cộng với `allowed_field_ids`. `field_id` là publish blocker bắt buộc và phải được ghi xuống chunk metadata, Chroma, Elasticsearch/BM25 và Neo4j sau publish.
+
 ### 1.4. Luồng sửa review rồi publish
 
 ```text
@@ -636,7 +638,7 @@ Cách implement:
 - Lấy collection `config.chroma_collection`.
 - Embed query bằng `LocalEmbeddingProvider(config.embedding_model)`.
 - Query records có `is_published = 1`.
-- Convert kết quả thành `RetrievalHit`, lọc theo document number/article number và hiệu lực qua `hit_allowed()`.
+- Convert kết quả thành `RetrievalHit`, lọc theo document number/article number, hiệu lực và `field_id` qua `hit_allowed()`.
 
 ### `ElasticsearchBM25Retriever`
 
@@ -646,7 +648,7 @@ Cách implement:
 
 - Chỉ chạy khi `config.bm25_provider == "elasticsearch"`.
 - Query multi-match trên `content`, `document_title`, `citation_label`, `document_number`.
-- Luôn filter `is_published=true`; thêm filter `document_number`/`article_number` nếu extract được.
+- Luôn filter `is_published=true`; thêm filter `field_id`, `document_number`/`article_number` nếu extract được.
 - Hỗ trợ API key hoặc basic auth từ config.
 - Nếu thiếu config/package/client lỗi thì raise `RetrieverUnavailable` để agent ghi warning thay vì crash.
 
@@ -673,7 +675,7 @@ Cách implement:
 
 - Tìm trong `document_registry` với `is_published = 1`.
 - Match theo `document_number` nếu filter có, hoặc theo query/title.
-- Gắn tối đa 10 relation đã publish từ `document_relations`.
+- Gắn tối đa 10 relation đã publish từ `document_relations`, nhưng không trả relation target ngoài access scope nếu target resolve được.
 - Dùng cho mode `status_basic`, kể cả khi chưa có chunk retrieval phù hợp.
 
 ### `ChatAgentService.__init__(config, ...)`

@@ -33,6 +33,7 @@ def create_user():
             username=username,
             password=password,
             role=role,
+            allowed_field_ids=payload.get("allowed_field_ids"),
         )
     except AuthError as exc:
         return error_response(exc.code, exc.message, exc.status_code)
@@ -44,7 +45,7 @@ def create_user():
 @require_role("admin")
 def update_user(user_id: str):
     payload = request.get_json(silent=True) or {}
-    allowed_fields = {"role", "password", "is_active"}
+    allowed_fields = {"role", "password", "is_active", "allowed_field_ids"}
     updates = {key: value for key, value in payload.items() if key in allowed_fields}
 
     try:

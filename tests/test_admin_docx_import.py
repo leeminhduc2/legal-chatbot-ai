@@ -58,6 +58,7 @@ class AdminDocxImportTest(unittest.TestCase):
         self.assertEqual(response.status_code, 201, response.get_data(as_text=True))
         payload = response.get_json()
         self.assertEqual(payload["status"], "ready_for_review")
+        self.assertIn("field_id", payload["publish_blockers"])
         self.assertTrue(Path(payload["raw_docx_path"]).exists())
         self.assertTrue(Path(payload["preprocessed_text_path"]).exists())
         self.assertTrue(Path(payload["chunk_json_path"]).exists())
@@ -108,6 +109,7 @@ class AdminDocxImportTest(unittest.TestCase):
             "document_number": "01/2026/QD-TEST",
             "document_title": "Quyet dinh test",
             "validity_status": "active",
+            "field_id": 0,
         }
         chunks = regex_chunk_text(
             "Dieu 5. Trach nhiem\n1. Nguoi X co nghia vu Y.\n2. Nguoi Z co quyen W.",
@@ -150,6 +152,7 @@ class AdminDocxImportTest(unittest.TestCase):
             "document_number": "02/2026/QD-TEST",
             "document_title": "Van ban sua doi",
             "validity_status": "active",
+            "field_id": 0,
         }
         text = (
             "Dieu 1. Sua doi, bo sung mot so dieu\n"
@@ -288,6 +291,7 @@ class AdminDocxImportTest(unittest.TestCase):
         self.assertEqual(response.status_code, 201, response.get_data(as_text=True))
         self.assertTrue(response.get_json()["document_number"].startswith("UNIDENTIFIED-"))
         self.assertIn("document_number", response.get_json()["needs_review_fields"])
+        self.assertIn("field_id", response.get_json()["needs_review_fields"])
 
     def test_import_with_required_metadata_auto_publishes(self) -> None:
         token = self._login("admin", "password")
@@ -316,6 +320,7 @@ class AdminDocxImportTest(unittest.TestCase):
 
         for writer in writers:
             self.assertEqual(writer.indexed_batches, [payload["import_batch_id"]])
+            self.assertEqual(writer.field_ids, [0])
 
         detail = self.client.get(
             f"/api/v1/admin/documents/{payload['document_id']}?scope=active",
@@ -372,6 +377,7 @@ class AdminDocxImportTest(unittest.TestCase):
         )
         for writer in writers:
             self.assertEqual(writer.indexed_batches, [import_payload["import_batch_id"]])
+            self.assertEqual(writer.field_ids, [0])
 
         detail = self.client.get(
             f"/api/v1/admin/documents/{import_payload['document_id']}",
@@ -382,6 +388,7 @@ class AdminDocxImportTest(unittest.TestCase):
         self.assertEqual(detail_payload["version"]["status"], "published")
         self.assertEqual(detail_payload["document"]["active_version"], 1)
         self.assertEqual(detail_payload["document"]["is_published"], 1)
+        self.assertEqual(detail_payload["document"]["field_id"], 0)
 
     def test_non_admin_cannot_publish(self) -> None:
         admin_token = self._login("admin", "password")
@@ -627,6 +634,7 @@ class AdminDocxImportTest(unittest.TestCase):
         self.assertTrue(missing_payload["document_number"].startswith("UNIDENTIFIED-"))
         self.assertIn("document_number", missing_payload["needs_review_fields"])
         self.assertIn("effective_date", missing_payload["needs_review_fields"])
+        self.assertIn("field_id", missing_payload["needs_review_fields"])
 
         invalid_docx = self.client.post(
             "/api/v1/admin/documents/import",
@@ -666,6 +674,7 @@ class AdminDocxImportTest(unittest.TestCase):
                 "effective_date": "2026-01-01",
                 "signer_title": "Bo truong",
                 "signer_name": "Nguyen Van A",
+                "field_id": 0,
             },
         )
         self.assertEqual(metadata_update.status_code, 200, metadata_update.get_data(as_text=True))
@@ -908,6 +917,16 @@ class AdminDocxImportTest(unittest.TestCase):
                     id, document_id, version, crawl_batch_id, status, created_at
                 )
                 VALUES ('v1', 'd1', 1, 'old-batch', 'ready_for_review', 'now');
+                INSERT INTO document_registry (
+                    document_id, document_number, title, source_system, source_url,
+                    sector, domain, issuing_body, signer_title, signer_name,
+                    document_type, issued_date, effective_date, expiry_date,
+                    validity_status, raw_metadata_json, active_version,
+                    is_published, is_deleted, created_at, updated_at
+                )
+                VALUES ('d1', '01/2026/QD-TEST', 'Old document', 'test', '',
+                        '', '', '', '', '', '', '', '', '', 'active', '{}',
+                        NULL, 0, 0, 'now', 'now');
                 """
             )
         finally:
@@ -920,9 +939,13 @@ class AdminDocxImportTest(unittest.TestCase):
             row = connection.execute(
                 "SELECT import_batch_id FROM document_versions WHERE id = 'v1'"
             ).fetchone()
+            registry = connection.execute(
+                "SELECT field_id FROM document_registry WHERE document_id = 'd1'"
+            ).fetchone()
         finally:
             connection.close()
         self.assertEqual(row[0], "old-batch")
+        self.assertEqual(registry[0], 0)
 
     def test_title_hint_combines_document_type_and_next_title_line(self) -> None:
         from backend.services.document_import_service import extract_title_from_paragraphs
@@ -1020,12 +1043,14 @@ class FakeIndexWriter:
         self.indexed_batches: list[str] = []
         self.deleted_batches: list[str] = []
         self.relations_counts: list[int] = []
+        self.field_ids: list[int | None] = []
 
     def index_chunks(self, chunks, relations=None) -> None:
         if self.fail_index:
             raise RuntimeError(f"{self.name} failed")
         self.indexed_batches.append(chunks[0].import_batch_id)
         self.relations_counts.append(len(relations or []))
+        self.field_ids.append(chunks[0].field_id)
 
     def delete_by_batch(self, import_batch_id: str) -> None:
         self.deleted_batches.append(import_batch_id)
@@ -1048,6 +1073,7 @@ def complete_publish_metadata() -> dict[str, str]:
         "issued_date": "2026-01-01",
         "effective_date": "2026-01-01",
         "validity_status": "active",
+        "field_id": "0",
     }
 
 
