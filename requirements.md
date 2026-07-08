@@ -2,7 +2,7 @@
 
 ## Mô tả :
 
-Bộ phận pháp chế doanh nghiệp thường phải xử lý đồng thời nhiều nghiệp vụ như tra cứu văn bản pháp luật, kiểm tra hiệu lực văn bản, rà soát điều khoản hợp đồng, phát hiện rủi ro pháp lý và hỗ trợ soạn thảo hồ sơ nội bộ. Ví dụ: Trong lĩnh vực bảo hiểm, khối lượng văn bản quy phạm pháp luật lớn, có nhiều văn bản hướng dẫn, sửa đổi, hợp nhất và thay thế nên việc tra cứu thủ công dễ mất thời gian và dễ sử dụng nhầm văn bản đã hết hiệu lực hoặc chưa cập nhật đủ bản sửa đổi.
+    ồng thời nhiều nghiệp vụ như tra cứu văn bản pháp luật, kiểm tra hiệu lực văn bản, rà soát điều khoản hợp đồng, phát hiện rủi ro pháp lý và hỗ trợ soạn thảo hồ sơ nội bộ. Ví dụ: Trong lĩnh vực bảo hiểm, khối lượng văn bản quy phạm pháp luật lớn, có nhiều văn bản hướng dẫn, sửa đổi, hợp nhất và thay thế nên việc tra cứu thủ công dễ mất thời gian và dễ sử dụng nhầm văn bản đã hết hiệu lực hoặc chưa cập nhật đủ bản sửa đổi.
 
 
 ## Các bước thực hiện :

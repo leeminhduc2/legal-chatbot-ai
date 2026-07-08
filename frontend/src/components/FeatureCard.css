@@ -1,0 +1,124 @@
+.feature-card {
+  padding: 28px 24px;
+  transition: transform 0.25s ease, box-shadow 0.25s ease;
+  position: relative;
+  overflow: hidden;
+  min-height: 180px;
+}
+
+.feature-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, var(--accent-gold-light), transparent);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.feature-card.is-clickable {
+  cursor: pointer;
+}
+
+.feature-card.is-disabled {
+  cursor: default;
+}
+
+.feature-card.is-clickable:not(.is-locked):hover {
+  transform: scale(1.03);
+  box-shadow: var(--shadow-lg);
+}
+
+.feature-card.is-clickable:not(.is-locked):hover::before {
+  opacity: 1;
+}
+
+.feature-card.is-locked {
+  cursor: default;
+}
+
+.feature-card.is-locked.is-clickable {
+  cursor: pointer;
+}
+
+.feature-card.is-locked.is-clickable:hover {
+  box-shadow: var(--shadow-md);
+}
+
+.feature-card-body {
+  position: relative;
+  z-index: 1;
+}
+
+.feature-card.is-locked .feature-card-body {
+  filter: grayscale(0.45);
+  opacity: 0.28;
+}
+
+.feature-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+  position: relative;
+  z-index: 1;
+}
+
+.feature-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: var(--radius-md);
+  background: var(--bg-secondary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+}
+
+.feature-title {
+  font-size: 16px;
+  font-weight: 700;
+  margin-bottom: 8px;
+  position: relative;
+  z-index: 1;
+}
+
+.feature-desc {
+  font-size: 13px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+  position: relative;
+  z-index: 1;
+}
+
+.feature-lock-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 18px;
+  text-align: center;
+  background: rgba(255, 255, 255, 0.56);
+}
+
+[data-theme="dark"] .feature-lock-overlay {
+  background: rgba(18, 18, 18, 0.56);
+}
+
+.feature-lock-text {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  max-width: 100%;
+  padding: 9px 12px;
+  border: 1px solid var(--accent-gold);
+  border-radius: var(--radius-sm);
+  background: var(--bg-card);
+  color: var(--accent-gold);
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.35;
+  word-break: break-word;
+  box-shadow: var(--shadow-sm);
+}
